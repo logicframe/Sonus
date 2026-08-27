@@ -16,6 +16,7 @@ Sonus is a simple desktop application for listening to audio from YouTube withou
 - Sequential, repeat-queue and random playback modes.
 - Configurable search result count from 1 to 50.
 - Dark Sonus interface with rounded panels.
+- English and Russian interface languages.
 - Windows GUI mode without a persistent console window.
 
 ## Requirements
@@ -38,7 +39,7 @@ On subsequent launches, the launcher reuses the existing Python environment and 
 
 ## Using Sonus
 
-Paste a YouTube video or playlist URL into the search bar and press **Обработать**.
+Paste a YouTube video or playlist URL into the search bar and press **Process**.
 
 For a text query, enter a track title, artist or another search phrase and start the search. Select a result and add it to the queue.
 
@@ -48,9 +49,9 @@ The queue can contain tracks from multiple sources. Adding a new video or playli
 
 Sonus can download tracks to a local cache in the background. The mode can be changed in the application settings:
 
-- **Потоковая** — downloads tracks in queue order, from the first item to the last.
-- **Умная** — downloads the selected track first, then continues through the queue in order.
-- **Смешанная** — downloads the selected track first, then two previous and two next tracks, then continues through the queue in order.
+- **Streaming** - downloads tracks in queue order, from the first item to the last.
+- **Smart** - downloads the selected track first, then continues through the queue in order.
+- **Mixed** - downloads the selected track first, then two previous and two next tracks, then continues through the queue in order.
 
 Background downloads are sequential to keep network and CPU usage reasonable.
 
@@ -106,3 +107,115 @@ Users are responsible for complying with applicable laws, copyright restrictions
 ## License
 
 Sonus is licensed under the [MIT License](LICENSE).
+
+---
+
+# Sonus - Русский
+
+> Лёгкий настольный аудиоплеер YouTube для Windows.
+
+Sonus — простое настольное приложение для прослушивания аудио с YouTube без отображения самого видео. Поддерживаются отдельные видео, плейлисты, текстовый поиск, управление очередью, фоновое кэширование, управление воспроизведением и громкостью.
+
+## Возможности
+
+- Поиск музыки на YouTube и выбор результата из списка.
+- Открытие прямой ссылки на видео YouTube.
+- Добавление плейлистов YouTube в очередь.
+- Объединение плейлистов и отдельных видео в одной очереди.
+- Воспроизведение, пауза, переход вперёд/назад и перемотка.
+- Изменение громкости без перезапуска трека.
+- Фоновое кэширование аудио с выбором режима загрузки.
+- Последовательное, повторное и случайное воспроизведение очереди.
+- Настраиваемое количество результатов поиска от 1 до 50.
+- Тёмный интерфейс Sonus со скруглёнными панелями.
+- Английский и русский языки интерфейса.
+- Графический режим Windows без постоянно открытой консоли.
+
+## Требования
+
+- Windows 10 или Windows 11.
+- Подключение к интернету для поиска и первой загрузки аудио.
+- WinGet для автоматической установки отсутствующих компонентов.
+
+Глобальный Windows-лаунчер автоматически устанавливает Python 3.13 и Python-зависимости при необходимости. Он также проверяет наличие FFmpeg и пытается установить его через WinGet, если FFmpeg отсутствует.
+
+## Быстрый запуск
+
+1. Скачайте последнюю версию со страницы **Releases**.
+2. Распакуйте архив в любую папку.
+3. Запустите `run_windows.bat`.
+4. Дождитесь завершения первоначальной настройки окружения.
+5. Sonus запустится автоматически без постоянно открытого окна консоли.
+
+При последующих запусках лаунчер использует существующее окружение и устанавливает только отсутствующие или обновлённые Python-пакеты.
+
+## Использование Sonus
+
+Вставьте ссылку на видео или плейлист YouTube в поисковую строку и нажмите **Обработать**.
+
+Для текстового поиска введите название трека, исполнителя или другой поисковый запрос и запустите поиск. Выберите результат и добавьте его в очередь.
+
+Очередь может содержать треки из разных источников. Добавление нового видео или плейлиста не заменяет существующую очередь.
+
+## Фоновое кэширование
+
+Sonus может загружать треки в локальный кэш в фоновом режиме. Режим можно изменить в настройках приложения:
+
+- **Потоковая** - треки загружаются по порядку очереди, от первого до последнего.
+- **Умная** - сначала загружается выбранный трек, затем остальные по порядку очереди.
+- **Смешанная** - сначала загружается выбранный трек, затем два предыдущих и два следующих, после чего загрузка продолжается по порядку очереди.
+
+Фоновая загрузка выполняется последовательно, чтобы не создавать лишнюю нагрузку на сеть и процессор.
+
+Рабочий кэш очищается при запуске Sonus, поэтому файлы предыдущих сеансов не накапливаются бесконечно.
+
+## Результаты поиска
+
+Текстовый поиск сначала использует музыкально-ориентированный поиск YouTube, а при необходимости переходит к обычному поиску YouTube. Поэтому результаты должны лучше соответствовать музыкальным запросам, однако Sonus не может гарантировать, что каждый результат будет исключительно аудиорелизом.
+
+## Структура проекта
+
+```text
+Sonus/
+├── app.py
+├── requirements.txt
+├── run_windows.bat
+├── sonus.ico
+├── CHANGELOG.md
+├── LICENSE
+└── .gitignore
+```
+
+## Разработка
+
+Приложение реализовано на Python: Tkinter используется для графического интерфейса, pygame - для воспроизведения аудио. Метаданные YouTube и загрузка обрабатываются через yt-dlp, а FFmpeg используется для подготовки аудио.
+
+Для запуска исходников в уже настроенном совместимом окружении:
+
+```powershell
+python -m pip install -r requirements.txt
+python app.py
+```
+
+Для Windows рекомендуется использовать `run_windows.bat`.
+
+## Стороннее программное обеспечение
+
+Sonus использует сторонние программы и библиотеки, включая:
+
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp)
+- [pygame](https://www.pygame.org/)
+- [Pillow](https://python-pillow.org/)
+- [FFmpeg](https://ffmpeg.org/)
+
+Для этих компонентов действуют их собственные лицензии. Лицензия Sonus не распространяется на стороннее программное обеспечение.
+
+## YouTube и ответственность за содержимое
+
+Sonus является независимым приложением и не связан с YouTube или Google, не одобрен и не спонсируется ими.
+
+Пользователь самостоятельно отвечает за соблюдение применимого законодательства, авторских прав и условий используемых сервисов. Используйте только тот контент, к которому у вас есть право доступа или загрузки.
+
+## Лицензия
+
+Sonus распространяется по лицензии [MIT License](LICENSE).
