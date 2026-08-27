@@ -11,19 +11,18 @@ Sonus is a simple desktop application for listening to audio from YouTube withou
 - Add a YouTube playlist to the queue.
 - Combine playlists and individual videos in one queue.
 - Play, pause, skip forward, go back and seek through a track.
-- Adjust playback volume without restarting the track.
+- Adjust playback volume.
 - Background audio caching with selectable download modes.
 - Sequential, repeat-queue and random playback modes.
 - Configurable search result count from 1 to 50.
 - Dark Sonus interface with rounded panels.
 - English and Russian interface languages.
-- Windows GUI mode without a persistent console window.
 
 ## Requirements
 
 - Windows 10 or Windows 11.
 - Internet connection for search and first-time audio downloads.
-- WinGet for automatic setup of missing components.
+- WinGet for automatic setup of missing components(It's installed by default on Windows 10/11 as part of "App Installer").
 
 The Global Windows launcher installs Python 3.13 and the Python dependencies automatically when needed. It also checks for FFmpeg and attempts to install it through WinGet when it is not available.
 
@@ -112,7 +111,7 @@ Sonus is licensed under the [MIT License](LICENSE).
 
 # Sonus - Русский
 
-> Лёгкий настольный аудиоплеер YouTube для Windows.
+> Лёгкий десктопный аудиоплеер YouTube для Windows.
 
 Sonus — простое настольное приложение для прослушивания аудио с YouTube без отображения самого видео. Поддерживаются отдельные видео, плейлисты, текстовый поиск, управление очередью, фоновое кэширование, управление воспроизведением и громкостью.
 
@@ -123,19 +122,18 @@ Sonus — простое настольное приложение для про
 - Добавление плейлистов YouTube в очередь.
 - Объединение плейлистов и отдельных видео в одной очереди.
 - Воспроизведение, пауза, переход вперёд/назад и перемотка.
-- Изменение громкости без перезапуска трека.
+- Изменение громкости.
 - Фоновое кэширование аудио с выбором режима загрузки.
 - Последовательное, повторное и случайное воспроизведение очереди.
 - Настраиваемое количество результатов поиска от 1 до 50.
 - Тёмный интерфейс Sonus со скруглёнными панелями.
-- Английский и русский языки интерфейса.
-- Графический режим Windows без постоянно открытой консоли.
+- Английский и русский языки интерфейсы.
 
 ## Требования
 
 - Windows 10 или Windows 11.
 - Подключение к интернету для поиска и первой загрузки аудио.
-- WinGet для автоматической установки отсутствующих компонентов.
+- WinGet для автоматической установки отсутствующих компонентов(установлен в windows 10/11 по умолчанию).
 
 Глобальный Windows-лаунчер автоматически устанавливает Python 3.13 и Python-зависимости при необходимости. Он также проверяет наличие FFmpeg и пытается установить его через WinGet, если FFmpeg отсутствует.
 
