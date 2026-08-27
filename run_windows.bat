@@ -3,7 +3,7 @@ setlocal
 cd /d "%~dp0"
 
 echo ========================================
-echo YouTube Music Desktop
+echo Sonus
 echo Selecting Python interpreter...
 echo ========================================
 
@@ -98,7 +98,7 @@ echo.
 
 REM Launch pythonw.exe as a detached Windows process. Do NOT use START /B with the
 REM Python launcher: that keeps the child associated with the console lifetime.
-start "YouTube Music Desktop" "%PYTHONW_EXE%" "%~dp0app.py"
+start "Sonus" "%PYTHONW_EXE%" "%~dp0app.py"
 if errorlevel 1 (
     echo.
     echo ERROR: Failed to start the GUI application.
