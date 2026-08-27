@@ -34,7 +34,229 @@ CACHE_DIR = APP_DIR / "cache"
 AUDIO_CACHE_DIR = CACHE_DIR / "audio"
 SETTINGS_FILE = APP_DIR / "settings.json"
 APP_NAME = "Sonus"
-SEARCH_PLACEHOLDER = "Введите название трека, исполнителя, плейлист или ссылку YouTube…"
+
+# Windows shell/taskbar identity and icon helpers.  These are intentionally
+# kept dependency-free so the Global build does not need pywin32.
+_WINDOWS_ICON_HANDLES = []
+
+def configure_windows_app_identity() -> None:
+    if os.name != "nt":
+        return
+    try:
+        import ctypes
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("LogicFrame.Sonus")
+    except Exception:
+        pass
+
+
+def apply_windows_icon(window: tk.Misc, icon_path: Path) -> None:
+    """Apply Sonus icon to a Tk window and its Windows taskbar representation."""
+    if os.name != "nt" or not icon_path.exists():
+        return
+    try:
+        import ctypes
+        from ctypes import wintypes
+        user32 = ctypes.windll.user32
+        hwnd = wintypes.HWND(int(window.winfo_id()))
+
+        # Load the ICO file directly so the taskbar does not fall back to
+        # pythonw.exe's icon.
+        IMAGE_ICON = 1
+        LR_LOADFROMFILE = 0x00000010
+        LR_DEFAULTSIZE = 0x00000040
+        icon = user32.LoadImageW(None, str(icon_path), IMAGE_ICON, 32, 32, LR_LOADFROMFILE | LR_DEFAULTSIZE)
+        if icon:
+            _WINDOWS_ICON_HANDLES.append(icon)
+            WM_SETICON = 0x0080
+            ICON_BIG = 1
+            ICON_SMALL = 0
+            user32.SendMessageW(hwnd, WM_SETICON, ICON_BIG, icon)
+            user32.SendMessageW(hwnd, WM_SETICON, ICON_SMALL, icon)
+
+            # Also set the class icon used by the shell for the top-level Tk
+            # window.  This complements WM_SETICON on Windows 10.
+            GCLP_HICON = -14
+            if ctypes.sizeof(ctypes.c_void_p) == 8:
+                user32.SetClassLongPtrW(hwnd, GCLP_HICON, icon)
+            else:
+                user32.SetClassLongW(hwnd, GCLP_HICON, icon)
+    except Exception:
+        pass
+
+LANGUAGES = {
+    "en": {
+        "search_placeholder": "Enter a track, artist, playlist or YouTube link…",
+        "subtitle": "YouTube audio player",
+        "process": "Process",
+        "search_results": "Search results",
+        "enter_query": "Enter a query or link.",
+        "queue": "Queue",
+        "queue_empty": "Queue is empty",
+        "queue_hint": "Double-click — play. Ctrl+A — select all. Delete/Backspace — remove.",
+        "now_playing": "Now playing",
+        "preview": "Preview",
+        "nothing_selected": "Nothing selected",
+        "playback": "Playback",
+        "mode": "Mode",
+        "volume": "Volume",
+        "add_to_queue": "Add to queue →",
+        "normal": "Normal",
+        "repeat_current": "Repeat current",
+        "repeat_queue": "Repeat queue",
+        "shuffle": "Shuffle",
+        "ready": "Ready",
+        "processing": "Processing…",
+        "getting_data": "Getting data from YouTube…",
+        "processing_error": "Processing error",
+        "error": "Error",
+        "nothing_found": "Nothing found.",
+        "nothing_found_status": "Nothing found",
+        "double_click_hint": "Double-click — add and play. “Add to queue →” — add without stopping the current track.",
+        "found": "Found: {n}",
+        "added_queue": "Added to queue: {n}",
+        "link_added": "The link added {n} track(s) to the queue.",
+        "search_first": "Search for something first",
+        "track_added": "Track added to queue",
+        "track_removed_play": "Track removed. Switching…",
+        "removed_queue": "Removed from queue: {n}",
+        "queue_cleared": "Queue cleared",
+        "preparing_audio": "Preparing audio…",
+        "queue_status": "In queue: {n} · Caching started",
+        "playback_error": "Playback error",
+        "playing": "Playing",
+        "paused": "Paused",
+        "pause_error": "Pause error: {e}",
+        "resume_error": "Resume error: {e}",
+        "seek_error": "Seek error: {e}",
+        "queue_finished": "Queue finished",
+        "preview_unavailable": "Preview unavailable",
+        "dependency_missing": "Dependency not found",
+        "unexpected_error": "An unexpected error occurred:\n\n{e}",
+        "settings_title": "Settings",
+        "settings_search_results": "Search results",
+        "settings_search_desc": "Number of results for each new search. Choose from 1 to 50.",
+        "results_label": "Results:",
+        "cache_title": "Track caching",
+        "cache_desc": "Background caching does not affect playback. When disabled, the current track is still cached when playback starts.",
+        "cache_enable": "Cache tracks in the background",
+        "download_mode": "Download mode",
+        "streaming": "Streaming",
+        "streaming_desc": "Download all tracks in order, from the first in the queue to the last.",
+        "smart": "Smart",
+        "smart_desc": "Download the currently selected track first, then all other tracks in queue order.",
+        "mixed": "Mixed",
+        "mixed_desc": "Download the current track first, then two previous and two next tracks; continue in queue order afterward.",
+        "language": "Language",
+        "language_desc": "Choose the language used by the Sonus interface.",
+        "english": "English",
+        "russian": "Русский",
+        "close": "Close",
+        "settings_saved_mode": "Settings saved · {mode} caching",
+        "settings_saved_off": "Settings saved · background caching disabled",
+        "yt_missing": "yt-dlp is not installed. Run run_windows.bat or pip install -r requirements.txt",
+        "pygame_missing": "pygame is not installed. Run run_windows.bat or pip install -r requirements.txt",
+        "ffmpeg_missing": "ffmpeg was not found. It is required to prepare the OGG audio cache.",
+        "no_title": "Untitled",
+        "pause_playback": "Pause",
+        "play_playback": "Play",
+        "status_play": "Playback",
+        "status_paused": "Paused",
+        "status_resume": "Playback",
+        "settings_error_title": "Settings",
+        "default_language": "English",
+        "legal_title": "Before you start",
+        "legal_text": "Sonus is an independent desktop player intended for personal, non-commercial use.\n\nSonus does not host, store, or distribute YouTube media. Content is accessed at your request and may be temporarily cached on your device for playback and time-shifting.\n\nYou are responsible for complying with YouTube's Terms of Service, copyright law, and the rights of content creators. Use Sonus only with content you are permitted to access.",
+        "legal_agree": "I agree",
+        "legal_exit": "Exit",
+    },
+    "ru": {
+        "search_placeholder": "Введите название трека, исполнителя, плейлист или ссылку YouTube…",
+        "subtitle": "Аудиоплеер YouTube",
+        "process": "Обработать",
+        "search_results": "Результаты поиска",
+        "enter_query": "Введите запрос или ссылку.",
+        "queue": "Очередь",
+        "queue_empty": "Очередь пуста",
+        "queue_hint": "Двойной клик — воспроизвести. Ctrl+A — выбрать все. Delete/Backspace — удалить.",
+        "now_playing": "Сейчас играет",
+        "preview": "Превью",
+        "nothing_selected": "Ничего не выбрано",
+        "playback": "Управление воспроизведением",
+        "mode": "Режим",
+        "volume": "Громкость",
+        "add_to_queue": "В очередь →",
+        "normal": "Обычный",
+        "repeat_current": "Повтор текущего",
+        "repeat_queue": "Повтор очереди",
+        "shuffle": "Случайный",
+        "ready": "Готово",
+        "processing": "Обрабатываю…",
+        "getting_data": "Получение данных с YouTube…",
+        "processing_error": "Ошибка обработки",
+        "error": "Ошибка",
+        "nothing_found": "Ничего не найдено.",
+        "nothing_found_status": "Ничего не найдено",
+        "double_click_hint": "Двойной клик — добавить и запустить. «В очередь →» — добавить без остановки текущего трека.",
+        "found": "Найдено: {n}",
+        "added_queue": "Добавлено в очередь: {n}",
+        "link_added": "Ссылка добавила {n} трек(ов) в очередь.",
+        "search_first": "Сначала выполните поиск",
+        "track_added": "Трек добавлен в очередь",
+        "track_removed_play": "Трек удалён. Переключение…",
+        "removed_queue": "Удалено из очереди: {n}",
+        "queue_cleared": "Очередь очищена",
+        "preparing_audio": "Готовлю аудио…",
+        "queue_status": "В очереди: {n} · Кэширование запущено",
+        "playback_error": "Ошибка воспроизведения",
+        "playing": "Воспроизведение",
+        "paused": "Пауза",
+        "pause_error": "Ошибка паузы: {e}",
+        "resume_error": "Ошибка продолжения: {e}",
+        "seek_error": "Перемотка: {e}",
+        "queue_finished": "Очередь закончена",
+        "preview_unavailable": "Превью недоступно",
+        "dependency_missing": "Зависимость не найдена",
+        "unexpected_error": "Произошла непредвиденная ошибка:\n\n{e}",
+        "settings_title": "Настройки",
+        "settings_search_results": "Результаты поиска",
+        "settings_search_desc": "Количество результатов при каждом новом поиске. Можно выбрать от 1 до 50.",
+        "results_label": "Результатов:",
+        "cache_title": "Загрузка треков в кэш",
+        "cache_desc": "Фоновая загрузка не влияет на воспроизведение. При отключении текущий трек всё равно будет загружен при запуске.",
+        "cache_enable": "Загружать треки в кэш в фоне",
+        "download_mode": "Режим загрузки",
+        "streaming": "Потоковая",
+        "streaming_desc": "Все треки скачиваются по порядку: от первого в очереди до последнего.",
+        "smart": "Умная",
+        "smart_desc": "Сначала загружается текущий выбранный трек, затем все остальные по порядку очереди.",
+        "mixed": "Смешанная",
+        "mixed_desc": "Сначала текущий трек, затем два предыдущих и два следующих; далее — остальные по порядку.",
+        "language": "Язык",
+        "language_desc": "Выберите язык интерфейса Sonus.",
+        "english": "English",
+        "russian": "Русский",
+        "close": "Закрыть",
+        "settings_saved_mode": "Настройки сохранены · {mode} загрузка",
+        "settings_saved_off": "Настройки сохранены · фоновое кэширование отключено",
+        "yt_missing": "Не установлен yt-dlp. Выполните run_windows.bat или pip install -r requirements.txt",
+        "pygame_missing": "Не установлен pygame. Выполните run_windows.bat или pip install -r requirements.txt",
+        "ffmpeg_missing": "Не найден ffmpeg. Он нужен для подготовки аудио-кэша OGG.",
+        "no_title": "Без названия",
+        "pause_playback": "Пауза",
+        "play_playback": "Воспроизвести",
+        "status_play": "Воспроизведение",
+        "status_paused": "Пауза",
+        "status_resume": "Воспроизведение",
+        "settings_error_title": "Настройки",
+        "default_language": "English",
+        "legal_title": "Перед началом",
+        "legal_text": "Sonus — независимый настольный проигрыватель для личного некоммерческого использования.\n\nSonus не размещает, не хранит и не распространяет медиаконтент YouTube. Контент запрашивается пользователем и может временно кэшироваться на вашем устройстве для воспроизведения и перемотки.\n\nВы несёте ответственность за соблюдение Условий использования YouTube, авторского права и прав создателей контента. Используйте Sonus только с контентом, к которому у вас есть право доступа.",
+        "legal_agree": "Я согласен",
+        "legal_exit": "Выйти",
+    },
+}
+
+SEARCH_PLACEHOLDER = LANGUAGES["en"]["search_placeholder"]
 
 THEMES = {
     "dark": {
@@ -149,12 +371,18 @@ class App:
         root.minsize(920, 620)
 
         self.settings = self.load_settings()
+        self.language = self.settings.get("language", "en") if self.settings.get("language", "en") in LANGUAGES else "en"
         self.theme_name = "dark"
         self.theme = THEMES[self.theme_name]
         self.search_placeholder_active = False
         self.search_bar_canvas = None
         self.search_icon_window = None
+        self.search_placeholder_label = None
+        self.search_placeholder_window = None
         self.settings_window = None
+        self.legal_window = None
+        self._language_widgets = []
+        self._settings_widgets = {}
 
         self.queue: list[Track] = []
         self.current_results: list[Track] = []
@@ -176,7 +404,7 @@ class App:
         self.cache_futures: dict[str, object] = {}
         self.cache_lock = threading.Lock()
         self.play_mode = StringVar(value="normal")
-        self.play_mode_display = StringVar(value="Обычный")
+        self.play_mode_display = StringVar(value=self.tr("normal"))
 
         self.search_limit = IntVar(value=self._clamp_int(self.settings.get("search_results", 10), 1, 50))
         self.cache_enabled = BooleanVar(value=bool(self.settings.get("prefetch_enabled", True)))
@@ -187,10 +415,10 @@ class App:
 
         self.volume = IntVar(value=80)
         self.thumb_photo = None
-        self.status = StringVar(value="Готово")
+        self.status = StringVar(value=self.tr("ready"))
         self.query = StringVar()
         self.repeat = BooleanVar(value=False)
-        self.queue_size_var = StringVar(value="Очередь")
+        self.queue_size_var = StringVar(value=self.tr("queue"))
         self.time_label_var = StringVar(value="00:00 / 00:00")
 
         self.build_ui()
@@ -200,6 +428,7 @@ class App:
 
         self.init_audio()
         self.refresh_buttons()
+        self.root.after(50, self.maybe_show_legal_notice)
         self.poll_player()
 
     def build_ui(self):
@@ -221,6 +450,11 @@ class App:
         style.configure("TLabelFrame", background=self.theme["surface"], foreground=self.theme["text"], bordercolor=self.theme["border"], lightcolor=self.theme["border"], darkcolor=self.theme["border"], relief="solid", borderwidth=1)
         style.configure("TLabelframe.Label", background=self.theme["surface"], foreground=self.theme["text"], font=("Segoe UI", 10, "bold"))
         style.configure("TCombobox", fieldbackground=self.theme["surface_alt"], background=self.theme["surface_alt"], foreground=self.theme["text"], arrowcolor=self.theme["muted"], bordercolor=self.theme["border"])
+        style.configure("Compact.TCombobox", fieldbackground=self.theme["surface_alt"], background=self.theme["surface_alt"], foreground=self.theme["text"], arrowcolor=self.theme["muted"], bordercolor=self.theme["border"], padding=(4, 2), arrowsize=10, font=("Segoe UI", 9))
+        style.configure("Sonus.TSpinbox", fieldbackground=self.theme["surface_alt"], background=self.theme["surface_alt"], foreground=self.theme["text"], arrowcolor=self.theme["accent"], bordercolor=self.theme["border"], padding=(2, 1), arrowsize=9, font=("Segoe UI", 9))
+        style.map("Sonus.TSpinbox", fieldbackground=[("focus", self.theme["surface_hover"])], foreground=[("disabled", self.theme["muted"])])
+        style.configure("Sonus.TCheckbutton", background=self.theme["surface"], foreground=self.theme["text"], indicatorcolor=self.theme["accent"], focusthickness=0, padding=(0, 1))
+        style.map("Sonus.TCheckbutton", foreground=[("disabled", self.theme["muted"])], indicatorcolor=[("selected", self.theme["accent"]), ("active", self.theme["accent_hover"])])
         style.map("TCombobox", fieldbackground=[("readonly", self.theme["surface_alt"])], selectbackground=[("readonly", self.theme["surface_alt"])], selectforeground=[("readonly", self.theme["text"])])
         # Accent-colored controls keep all sliders/scrollbars readable in the dark UI.
         style.configure(
@@ -261,7 +495,8 @@ class App:
         icon_label = tk.Label(header, image=self.app_icon_photo, bg=self.theme["bg"], bd=0)
         icon_label.pack(side=LEFT, padx=(0, 9))
         ttk.Label(header, text=APP_NAME, style="Title.TLabel").pack(side=LEFT)
-        ttk.Label(header, text="YouTube audio player", style="Subtle.TLabel").pack(side=LEFT, padx=(10, 0), pady=(7, 0))
+        self.subtitle_label = ttk.Label(header, text=self.tr("subtitle"), style="Subtle.TLabel")
+        self.subtitle_label.pack(side=LEFT, padx=(10, 0), pady=(7, 0))
 
         self.settings_button = ttk.Button(header, text="⚙", width=3, command=self.open_settings)
         self.settings_button.pack(side=RIGHT)
@@ -278,8 +513,11 @@ class App:
         self.search_icon_window = self.search_bar_canvas.create_window(24, 24, window=self.search_icon, anchor="center")
         self.input_entry = tk.Entry(self.search_bar_canvas, textvariable=self.query, bg=self.theme["surface_alt"], fg=self.theme["text"], insertbackground=self.theme["text"], relief="flat", bd=0, highlightthickness=0, font=("Segoe UI", 11), selectbackground=self.theme["select_bg"], selectforeground=self.theme["select_text"])
         self.search_entry_window = self.search_bar_canvas.create_window(50, 24, window=self.input_entry, anchor="w", width=600)
+        self.search_placeholder_label = tk.Label(self.search_bar_canvas, text="", bg=self.theme["surface_alt"], fg=self.theme["placeholder"], font=("Segoe UI", 11), bd=0, highlightthickness=0, anchor="w")
+        self.search_placeholder_window = self.search_bar_canvas.create_window(50, 24, window=self.search_placeholder_label, anchor="w", width=600)
+        self.search_placeholder_label.bind("<Button-1>", self._focus_search_from_placeholder)
 
-        self.process_button = ttk.Button(search_row, text="Обработать", style="Accent.TButton", command=self.process_input)
+        self.process_button = ttk.Button(search_row, text=self.tr("process"), style="Accent.TButton", command=self.process_input)
         self.process_button.grid(row=0, column=1, padx=(10, 0), ipady=2)
 
         body = ttk.Frame(outer, style="TFrame")
@@ -299,13 +537,14 @@ class App:
         result_content = result_frame.content
         result_content.columnconfigure(0, weight=1)
         result_content.rowconfigure(1, weight=1)
-        tk.Label(result_content, text="Результаты поиска", bg=self.theme["surface"], fg=self.theme["text"], font=("Segoe UI", 11, "bold")).grid(row=0, column=0, columnspan=2, sticky="w", padx=14, pady=(11, 8))
+        self.results_title_label = tk.Label(result_content, text=self.tr("search_results"), bg=self.theme["surface"], fg=self.theme["text"], font=("Segoe UI", 11, "bold"))
+        self.results_title_label.grid(row=0, column=0, columnspan=2, sticky="w", padx=14, pady=(11, 8))
         self.results_listbox = tk.Listbox(result_content, activestyle="none", font=("Segoe UI", 10), selectmode=tk.BROWSE, relief="flat", bd=0, highlightthickness=0)
         self.results_listbox.grid(row=1, column=0, sticky="nsew", padx=(14, 0))
         rsb = ttk.Scrollbar(result_content, orient="vertical", style="Vertical.TScrollbar", command=self.results_listbox.yview)
         rsb.grid(row=1, column=1, sticky="ns", padx=(0, 10), pady=(0, 2))
         self.results_listbox.configure(yscrollcommand=rsb.set)
-        self.results_hint = ttk.Label(result_content, text="Введите запрос или ссылку.", style="Subtle.TLabel")
+        self.results_hint = ttk.Label(result_content, text=self.tr("enter_query"), style="Subtle.TLabel")
         self.results_hint.grid(row=2, column=0, columnspan=2, sticky="w", padx=14, pady=(8, 11))
 
         self.queue_frame = RoundedCard(left, self.theme, radius=16, padding=1)
@@ -313,13 +552,15 @@ class App:
         queue_content = self.queue_frame.content
         queue_content.columnconfigure(0, weight=1)
         queue_content.rowconfigure(1, weight=1)
-        tk.Label(queue_content, text="Очередь", bg=self.theme["surface"], fg=self.theme["text"], font=("Segoe UI", 11, "bold")).grid(row=0, column=0, columnspan=2, sticky="w", padx=14, pady=(11, 8))
+        self.queue_title_label = tk.Label(queue_content, text=self.tr("queue"), bg=self.theme["surface"], fg=self.theme["text"], font=("Segoe UI", 11, "bold"))
+        self.queue_title_label.grid(row=0, column=0, columnspan=2, sticky="w", padx=14, pady=(11, 8))
         self.queue_listbox = tk.Listbox(queue_content, activestyle="none", font=("Segoe UI", 10), selectmode=tk.EXTENDED, relief="flat", bd=0, highlightthickness=0)
         self.queue_listbox.grid(row=1, column=0, sticky="nsew", padx=(14, 0))
         qsb = ttk.Scrollbar(queue_content, orient="vertical", style="Vertical.TScrollbar", command=self.queue_listbox.yview)
         qsb.grid(row=1, column=1, sticky="ns", padx=(0, 10), pady=(0, 2))
         self.queue_listbox.configure(yscrollcommand=qsb.set)
-        ttk.Label(queue_content, text="Двойной клик — воспроизвести. Ctrl+A — выбрать все. Delete/Backspace — удалить.", style="Subtle.TLabel").grid(row=2, column=0, columnspan=2, sticky="w", padx=14, pady=(8, 11))
+        self.queue_hint_label = ttk.Label(queue_content, text=self.tr("queue_hint"), style="Subtle.TLabel")
+        self.queue_hint_label.grid(row=2, column=0, columnspan=2, sticky="w", padx=14, pady=(8, 11))
 
         right = ttk.Frame(body, style="TFrame")
         right.grid(row=0, column=1, sticky="nsew", padx=(8, 0))
@@ -332,10 +573,11 @@ class App:
         preview_content = preview_card.content
         preview_content.columnconfigure(0, weight=1)
         preview_content.rowconfigure(1, weight=1)
-        tk.Label(preview_content, text="Сейчас играет", bg=self.theme["surface"], fg=self.theme["text"], font=("Segoe UI", 11, "bold")).grid(row=0, column=0, sticky="w", padx=14, pady=(11, 8))
-        self.preview = tk.Label(preview_content, text="Превью", anchor="center", bg=self.theme["surface_alt"], fg=self.theme["muted"], bd=0, highlightthickness=0)
+        self.now_playing_label = tk.Label(preview_content, text=self.tr("now_playing"), bg=self.theme["surface"], fg=self.theme["text"], font=("Segoe UI", 11, "bold"))
+        self.now_playing_label.grid(row=0, column=0, sticky="w", padx=14, pady=(11, 8))
+        self.preview = tk.Label(preview_content, text=self.tr("preview"), anchor="center", bg=self.theme["surface_alt"], fg=self.theme["muted"], bd=0, highlightthickness=0)
         self.preview.grid(row=1, column=0, sticky="nsew", padx=14)
-        self.now_title = tk.Label(preview_content, text="Ничего не выбрано", bg=self.theme["surface"], fg=self.theme["text"], font=("Segoe UI", 13, "bold"), anchor="w", justify="left", wraplength=390)
+        self.now_title = tk.Label(preview_content, text=self.tr("nothing_selected"), bg=self.theme["surface"], fg=self.theme["text"], font=("Segoe UI", 13, "bold"), anchor="w", justify="left", wraplength=390)
         self.now_title.grid(row=2, column=0, sticky="w", padx=14, pady=(12, 4))
         self.now_channel = tk.Label(preview_content, text="", bg=self.theme["surface"], fg=self.theme["muted"], font=("Segoe UI", 9), anchor="w")
         self.now_channel.grid(row=3, column=0, sticky="w", padx=14, pady=(0, 12))
@@ -345,7 +587,8 @@ class App:
         playback_content = playback_card.content
         playback_content.columnconfigure(0, weight=1)
         playback_content.rowconfigure(2, weight=1)
-        ttk.Label(playback_content, text="Управление воспроизведением", style="TLabel").grid(row=0, column=0, sticky="w", padx=14, pady=(11, 2))
+        self.playback_label = ttk.Label(playback_content, text=self.tr("playback"), style="TLabel")
+        self.playback_label.grid(row=0, column=0, sticky="w", padx=14, pady=(11, 2))
         ttk.Label(playback_content, textvariable=self.time_label_var, style="Subtle.TLabel").grid(row=1, column=0, sticky="w", padx=14, pady=(0, 2))
         self.slider = ttk.Scale(playback_content, from_=0, to=100, orient="horizontal", style="Horizontal.TScale")
         self.slider.grid(row=2, column=0, sticky="ew", padx=14, pady=(2, 10))
@@ -356,24 +599,26 @@ class App:
             controls.columnconfigure(i, weight=1)
         self.prev_btn = ttk.Button(controls, text="⏮", command=self.previous_track)
         self.prev_btn.grid(row=0, column=0, padx=2, sticky="ew")
-        self.back_btn = ttk.Button(controls, text="−10с", command=lambda: self.seek_relative(-10))
+        self.back_btn = ttk.Button(controls, text="−10s" if self.language == "en" else "−10с", command=lambda: self.seek_relative(-10))
         self.back_btn.grid(row=0, column=1, padx=2, sticky="ew")
         self.play_btn = ttk.Button(controls, text="▶", style="Accent.TButton", command=self.toggle_play)
         self.play_btn.grid(row=0, column=2, padx=2, sticky="ew")
-        self.fwd_btn = ttk.Button(controls, text="+10с", command=lambda: self.seek_relative(10))
+        self.fwd_btn = ttk.Button(controls, text="+10s" if self.language == "en" else "+10с", command=lambda: self.seek_relative(10))
         self.fwd_btn.grid(row=0, column=3, padx=2, sticky="ew")
         self.next_btn = ttk.Button(controls, text="⏭", command=self.next_track)
         self.next_btn.grid(row=0, column=4, padx=2, sticky="ew")
 
         bottom = ttk.Frame(playback_content, style="TFrame")
         bottom.grid(row=4, column=0, sticky="ew", padx=12, pady=(10, 11))
-        ttk.Label(bottom, text="Режим").pack(side=LEFT)
-        self.mode_combo = ttk.Combobox(bottom, textvariable=self.play_mode_display, values=("Обычный", "Повтор текущего", "Повтор очереди", "Случайный"), state="readonly", width=17)
+        self.mode_label = ttk.Label(bottom, text=self.tr("mode"))
+        self.mode_label.pack(side=LEFT)
+        self.mode_combo = ttk.Combobox(bottom, textvariable=self.play_mode_display, values=tuple(self.tr(k) for k in ("normal", "repeat_current", "repeat_queue", "shuffle")), state="readonly", width=17)
         self.mode_combo.pack(side=LEFT, padx=(6, 12))
         self.mode_combo.bind("<<ComboboxSelected>>", self._mode_selected)
-        self.mode_labels = {"Обычный": "normal", "Повтор текущего": "repeat_current", "Повтор очереди": "repeat_queue", "Случайный": "shuffle"}
-        self.mode_combo.set("Обычный")
-        ttk.Label(bottom, text="Громкость").pack(side=LEFT, padx=(10, 4))
+        self.mode_labels = {self.tr(k): k for k in ("normal", "repeat_current", "repeat_queue", "shuffle")}
+        self.mode_combo.set(self.tr("normal"))
+        self.volume_label = ttk.Label(bottom, text=self.tr("volume"))
+        self.volume_label.pack(side=LEFT, padx=(10, 4))
         self.volume_scale = ttk.Scale(bottom, from_=0, to=100, orient="horizontal", variable=self.volume, length=125, style="Horizontal.TScale")
         self.volume_scale.pack(side=LEFT)
         self.volume_scale.bind("<Button-1>", self.volume_mouse_down)
@@ -381,7 +626,7 @@ class App:
         self.volume_scale.bind("<ButtonRelease-1>", self.volume_mouse_up)
         self.volume_value = ttk.Label(bottom, text="80%", width=5)
         self.volume_value.pack(side=LEFT, padx=(4, 0))
-        self.add_queue_btn = ttk.Button(bottom, text="В очередь →", command=self.add_selected_result)
+        self.add_queue_btn = ttk.Button(bottom, text=self.tr("add_to_queue"), command=self.add_selected_result)
         self.add_queue_btn.pack(side=RIGHT)
 
         self.set_listbox_theme()
@@ -397,6 +642,13 @@ class App:
         except (TypeError, ValueError):
             return low
 
+    def tr(self, key, **kwargs):
+        text = LANGUAGES[self.language].get(key, LANGUAGES["en"].get(key, key))
+        return text.format(**kwargs) if kwargs else text
+
+    def _mode_text(self, mode):
+        return self.tr(mode)
+
     def load_settings(self):
         try:
             if SETTINGS_FILE.exists():
@@ -410,9 +662,11 @@ class App:
         try:
             data = {
                 "theme": "dark",
+                "language": self.language,
                 "search_results": self._clamp_int(self.search_limit.get(), 1, 50),
                 "prefetch_enabled": bool(self.cache_enabled.get()),
-                "prefetch_mode": self.cache_mode.get(),
+                "prefetch_mode": self.cache_mode.get() if self.cache_mode.get() in {"streaming", "smart", "mixed"} else "streaming",
+                "legal_accepted": bool(self.settings.get("legal_accepted", False)),
             }
             SETTINGS_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         except (OSError, tk.TclError):
@@ -424,14 +678,14 @@ class App:
             self._cancel_pending_cache_jobs()
         if hasattr(self, "status"):
             mode_names = {
-                "streaming": "Потоковая",
-                "smart": "Умная",
-                "mixed": "Смешанная",
+                "streaming": self.tr("streaming"),
+                "smart": self.tr("smart"),
+                "mixed": self.tr("mixed"),
             }
             if self.cache_enabled.get():
-                self.status.set(f"Настройки сохранены · {mode_names.get(self.cache_mode.get(), 'Потоковая')} загрузка")
+                self.status.set(self.tr("settings_saved_mode", mode=mode_names.get(self.cache_mode.get(), self.tr("streaming"))))
             else:
-                self.status.set("Настройки сохранены · фоновое кэширование отключено")
+                self.status.set(self.tr("settings_saved_off"))
         if hasattr(self, "queue") and self.cache_enabled.get():
             self.prefetch_tracks([], force_reschedule=True)
 
@@ -483,25 +737,106 @@ class App:
         self._rounded_rect(c, 1, 1, width-1, h-1, 22, fill=self.theme["surface_alt"], outline=self.theme["border"], width=1, tags="bar")
         c.tag_lower("bar")
         c.coords(self.search_icon_window, 24, h / 2)
-        c.itemconfigure(self.search_entry_window, width=max(80, width - 72), height=max(24, h - 8))
+        entry_width = max(80, width - 72)
+        c.itemconfigure(self.search_entry_window, width=entry_width, height=max(24, h - 8))
+        c.itemconfigure(self.search_placeholder_window, width=entry_width, height=max(24, h - 8))
+        c.tag_raise(self.search_placeholder_window)
+
+    def _show_search_placeholder(self):
+        if self.search_placeholder_label is None:
+            return
+        self.search_placeholder_active = True
+        self.search_placeholder_label.configure(text=self.tr("search_placeholder"), fg=self.theme["placeholder"])
+        self.search_bar_canvas.itemconfigure(self.search_placeholder_window, state="normal")
+        self.search_bar_canvas.tag_raise(self.search_placeholder_window)
+
+    def _hide_search_placeholder(self):
+        if self.search_placeholder_label is None:
+            return
+        self.search_placeholder_active = False
+        self.search_bar_canvas.itemconfigure(self.search_placeholder_window, state="hidden")
+        self.input_entry.configure(fg=self.theme["text"], insertbackground=self.theme["text"])
 
     def set_search_placeholder(self):
         if self.query.get().strip():
-            self.search_placeholder_active = False
+            self._hide_search_placeholder()
             return
-        self.search_placeholder_active = True
-        self.query.set(SEARCH_PLACEHOLDER)
-        self.input_entry.configure(fg=self.theme["placeholder"], insertbackground=self.theme["text"])
+        self._show_search_placeholder()
 
     def clear_search_placeholder(self, _event=None):
-        if self.search_placeholder_active:
-            self.search_placeholder_active = False
-            self.query.set("")
+        # Focus alone must NOT convert the placeholder into user text.
         self.input_entry.configure(fg=self.theme["text"], insertbackground=self.theme["text"])
 
     def restore_search_placeholder(self, _event=None):
         if not self.query.get().strip():
-            self.set_search_placeholder()
+            self._show_search_placeholder()
+
+    def _focus_search_from_placeholder(self, _event=None):
+        self.input_entry.focus_set()
+        return "break"
+
+    def _search_keypress(self, event):
+        if not self.search_placeholder_active:
+            return None
+        # Keep the placeholder visible for navigation keys and Ctrl shortcuts.
+        if getattr(event, "state", 0) & 0x0004:
+            return None
+        if getattr(event, "char", ""):
+            self._hide_search_placeholder()
+        return None
+
+    def maybe_show_legal_notice(self):
+        """Show a one-time first-run notice before the user starts using Sonus."""
+        if self.settings.get("legal_accepted"):
+            return
+        if self.legal_window is not None:
+            try:
+                if self.legal_window.winfo_exists():
+                    self.legal_window.focus_force()
+                    return
+            except tk.TclError:
+                pass
+
+        window = tk.Toplevel(self.root)
+        self.legal_window = window
+        window.title(f"{self.tr('legal_title')} - {APP_NAME}")
+        window.geometry("560x390")
+        window.minsize(500, 340)
+        window.resizable(False, False)
+        window.transient(self.root)
+        window.configure(bg=self.theme["bg"])
+        window.protocol("WM_DELETE_WINDOW", self.on_close)
+        icon_path = APP_DIR / "sonus.ico"
+        try:
+            if icon_path.exists():
+                window.iconbitmap(str(icon_path))
+                apply_windows_icon(window, icon_path)
+        except tk.TclError:
+            pass
+
+        card = RoundedCard(window, self.theme, radius=18, padding=1)
+        card.pack(fill=BOTH, expand=True, padx=14, pady=14)
+        content = card.content
+        title = tk.Label(content, text=self.tr("legal_title"), bg=self.theme["surface"], fg=self.theme["text"], font=("Segoe UI", 18, "bold"))
+        title.pack(anchor="w", padx=22, pady=(22, 10))
+        body = tk.Label(content, text=self.tr("legal_text"), bg=self.theme["surface"], fg=self.theme["muted"], font=("Segoe UI", 10), justify="left", anchor="w", wraplength=480)
+        body.pack(fill=X, padx=22, pady=(0, 18))
+        btns = tk.Frame(content, bg=self.theme["surface"])
+        btns.pack(fill=X, padx=22, pady=(0, 22))
+
+        def agree():
+            self.settings["legal_accepted"] = True
+            self.save_settings()
+            try:
+                window.destroy()
+            except tk.TclError:
+                pass
+            self.legal_window = None
+
+        ttk.Button(btns, text=self.tr("legal_agree"), style="Accent.TButton", command=agree).pack(side=RIGHT)
+        ttk.Button(btns, text=self.tr("legal_exit"), command=self.on_close).pack(side=RIGHT, padx=(0, 8))
+        window.grab_set()
+        window.focus_force()
 
     def open_settings(self):
         if self.settings_window is not None:
@@ -514,79 +849,199 @@ class App:
 
         window = tk.Toplevel(self.root)
         self.settings_window = window
-        window.title(f"Настройки — {APP_NAME}")
-        window.geometry("520x560")
+        window.title(f"{self.tr('settings_title')} - {APP_NAME}")
+        window.geometry("520x600")
         window.minsize(480, 520)
         window.transient(self.root)
-        window.grab_set()
         window.configure(bg=self.theme["bg"])
         window.protocol("WM_DELETE_WINDOW", lambda: self._close_settings(window))
+        icon_path = APP_DIR / "sonus.ico"
+        try:
+            if icon_path.exists():
+                window.iconbitmap(str(icon_path))
+                apply_windows_icon(window, icon_path)
+        except tk.TclError:
+            pass
 
         card = RoundedCard(window, self.theme, radius=18, padding=1)
         card.pack(fill=BOTH, expand=True, padx=14, pady=14)
-        content = card.content
-        content.columnconfigure(0, weight=1)
+        canvas = tk.Canvas(card.content, bg=self.theme["surface"], highlightthickness=0, bd=0)
+        scrollbar = ttk.Scrollbar(card.content, orient="vertical", command=canvas.yview, style="Vertical.TScrollbar")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.pack(side=LEFT, fill=BOTH, expand=True)
+        scrollbar.pack(side=RIGHT, fill=Y)
+        inner = tk.Frame(canvas, bg=self.theme["surface"])
+        window_id = canvas.create_window((0, 0), window=inner, anchor="nw")
 
-        tk.Label(content, text="Настройки", bg=self.theme["surface"], fg=self.theme["text"], font=("Segoe UI", 18, "bold")).grid(row=0, column=0, sticky="w", padx=20, pady=(18, 4))
+        def on_inner_configure(_=None):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+        def on_canvas_configure(event):
+            canvas.itemconfigure(window_id, width=event.width)
+        def on_wheel(event):
+            canvas.yview_scroll(int(-event.delta / 120), "units")
+        inner.bind("<Configure>", on_inner_configure)
+        canvas.bind("<Configure>", on_canvas_configure)
+        canvas.bind_all("<MouseWheel>", on_wheel, add="+")
 
-        tk.Label(content, text="Результаты поиска", bg=self.theme["surface"], fg=self.theme["text"], font=("Segoe UI", 11, "bold")).grid(row=1, column=0, sticky="w", padx=20, pady=(16, 2))
-        tk.Label(content, text="Количество результатов при каждом новом поиске. Можно выбрать от 1 до 50.", bg=self.theme["surface"], fg=self.theme["muted"], font=("Segoe UI", 9), wraplength=430, justify="left").grid(row=2, column=0, sticky="w", padx=20, pady=(0, 8))
+        self._settings_widgets = {"window": window, "canvas": canvas, "wheel": on_wheel, "inner": inner}
+        inner.columnconfigure(0, weight=1)
 
-        search_card = RoundedCard(content, self.theme, radius=12, padding=1)
+        title = tk.Label(inner, text=self.tr("settings_title"), bg=self.theme["surface"], fg=self.theme["text"], font=("Segoe UI", 18, "bold"))
+        title.grid(row=0, column=0, sticky="w", padx=20, pady=(18, 4))
+
+        search_title = tk.Label(inner, text=self.tr("settings_search_results"), bg=self.theme["surface"], fg=self.theme["text"], font=("Segoe UI", 11, "bold"))
+        search_title.grid(row=1, column=0, sticky="w", padx=20, pady=(16, 2))
+        search_desc = tk.Label(inner, text=self.tr("settings_search_desc"), bg=self.theme["surface"], fg=self.theme["muted"], font=("Segoe UI", 9), wraplength=430, justify="left")
+        search_desc.grid(row=2, column=0, sticky="w", padx=20, pady=(0, 8))
+
+        search_card = RoundedCard(inner, self.theme, radius=12, padding=1)
         search_card.grid(row=3, column=0, sticky="ew", padx=20, pady=(0, 14))
         search_inner = search_card.content
-        tk.Label(search_inner, text="Результатов:", bg=self.theme["surface"], fg=self.theme["text"], font=("Segoe UI", 10)).pack(side=LEFT, padx=(12, 8), pady=10)
+        results_label = tk.Label(search_inner, text=self.tr("results_label"), bg=self.theme["surface"], fg=self.theme["text"], font=("Segoe UI", 10))
+        results_label.pack(side=LEFT, padx=(12, 8), pady=10)
         validate_cmd = (self.root.register(self._validate_search_limit), "%P")
-        search_spin = ttk.Spinbox(
-            search_inner,
-            from_=1,
-            to=50,
-            textvariable=self.search_limit,
-            width=3,
-            justify="center",
-            command=self._settings_changed,
-            style="Sonus.TSpinbox",
-            validate="key",
-            validatecommand=validate_cmd,
-        )
+        search_spin = ttk.Spinbox(search_inner, from_=1, to=50, textvariable=self.search_limit, width=2, justify="center", command=self._settings_changed, style="Sonus.TSpinbox", validate="key", validatecommand=validate_cmd)
         search_spin.pack(side=LEFT, pady=10)
         search_spin.bind("<FocusOut>", self._normalize_search_limit)
         search_spin.bind("<Return>", self._normalize_search_limit)
 
-        tk.Label(content, text="Загрузка треков в кэш", bg=self.theme["surface"], fg=self.theme["text"], font=("Segoe UI", 11, "bold")).grid(row=4, column=0, sticky="w", padx=20, pady=(4, 2))
-        tk.Label(content, text="Фоновая загрузка не влияет на воспроизведение. При отключении текущий трек всё равно будет загружен при запуске.", bg=self.theme["surface"], fg=self.theme["muted"], font=("Segoe UI", 9), wraplength=430, justify="left").grid(row=5, column=0, sticky="w", padx=20, pady=(0, 8))
+        cache_title = tk.Label(inner, text=self.tr("cache_title"), bg=self.theme["surface"], fg=self.theme["text"], font=("Segoe UI", 11, "bold"))
+        cache_title.grid(row=4, column=0, sticky="w", padx=20, pady=(4, 2))
+        cache_desc = tk.Label(inner, text=self.tr("cache_desc"), bg=self.theme["surface"], fg=self.theme["muted"], font=("Segoe UI", 9), wraplength=430, justify="left")
+        cache_desc.grid(row=5, column=0, sticky="w", padx=20, pady=(0, 8))
 
-        cache_card = RoundedCard(content, self.theme, radius=12, padding=1)
+        cache_card = RoundedCard(inner, self.theme, radius=12, padding=1)
         cache_card.grid(row=6, column=0, sticky="ew", padx=20, pady=(0, 8))
         cache_inner = cache_card.content
-        ttk.Checkbutton(cache_inner, text="Загружать треки в кэш в фоне", variable=self.cache_enabled, command=self._settings_changed).pack(anchor="w", padx=12, pady=(10, 7))
+        cache_check = tk.Checkbutton(
+            cache_inner,
+            text=self.tr("cache_enable"),
+            variable=self.cache_enabled,
+            command=self._settings_changed,
+            bg=self.theme["surface"],
+            fg=self.theme["text"],
+            activebackground=self.theme["surface"],
+            activeforeground=self.theme["text"],
+            selectcolor=self.theme["accent"],
+            disabledforeground=self.theme["muted"],
+            bd=0,
+            highlightthickness=0,
+            relief="flat",
+            font=("Segoe UI", 9),
+        )
+        cache_check.pack(anchor="w", padx=12, pady=(10, 7))
 
-        tk.Label(cache_inner, text="Режим загрузки", bg=self.theme["surface"], fg=self.theme["muted"], font=("Segoe UI", 9)).pack(anchor="w", padx=12, pady=(0, 4))
+        download_mode_label = tk.Label(cache_inner, text=self.tr("download_mode"), bg=self.theme["surface"], fg=self.theme["muted"], font=("Segoe UI", 9))
+        download_mode_label.pack(anchor="w", padx=12, pady=(0, 4))
         mode_frame = tk.Frame(cache_inner, bg=self.theme["surface"])
         mode_frame.pack(fill=X, padx=12, pady=(0, 10))
-        mode_options = (
-            ("streaming", "Потоковая", "Все треки скачиваются по порядку: от первого в очереди до последнего."),
-            ("smart", "Умная", "Сначала текущий выбранный трек, затем все остальные по порядку очереди."),
-            ("mixed", "Смешанная", "Сначала текущий трек, затем два предыдущих и два следующих; далее — остальные по порядку."),
-        )
-        for value, label, _description in mode_options:
-            tk.Radiobutton(mode_frame, text=label, value=value, variable=self.cache_mode, command=self._settings_changed, bg=self.theme["surface"], fg=self.theme["text"], selectcolor=self.theme["surface_alt"], activebackground=self.theme["surface"], activeforeground=self.theme["text"], bd=0, highlightthickness=0, font=("Segoe UI", 9)).pack(anchor="w", pady=1)
-            tk.Label(mode_frame, text=_description, bg=self.theme["surface"], fg=self.theme["muted"], font=("Segoe UI", 8), wraplength=400, justify="left").pack(anchor="w", padx=(24, 0), pady=(0, 4))
+        self._settings_widgets["cache_check"] = cache_check
+        self._settings_widgets["settings_title"] = title
+        self._settings_widgets["search_title"] = search_title
+        self._settings_widgets["search_desc"] = search_desc
+        self._settings_widgets["results_label"] = results_label
+        self._settings_widgets["cache_title"] = cache_title
+        self._settings_widgets["cache_desc"] = cache_desc
+        self._settings_widgets["download_mode_label"] = download_mode_label
+        self._settings_widgets["cache_modes"] = []
 
-        tk.Label(content, text="Внешний вид", bg=self.theme["surface"], fg=self.theme["text"], font=("Segoe UI", 11, "bold")).grid(row=7, column=0, sticky="w", padx=20, pady=(6, 2))
-        tk.Label(content, text="Тёмная тема используется всегда.", bg=self.theme["surface"], fg=self.theme["muted"], font=("Segoe UI", 9)).grid(row=8, column=0, sticky="w", padx=20, pady=(0, 12))
+        for value, label_key, desc_key in (("streaming", "streaming", "streaming_desc"), ("smart", "smart", "smart_desc"), ("mixed", "mixed", "mixed_desc")):
+            rb = tk.Radiobutton(mode_frame, text=self.tr(label_key), value=value, variable=self.cache_mode, command=self._settings_changed, bg=self.theme["surface"], fg=self.theme["text"], selectcolor=self.theme["surface_alt"], activebackground=self.theme["surface"], activeforeground=self.theme["text"], bd=0, highlightthickness=0, font=("Segoe UI", 9))
+            rb.pack(anchor="w", pady=1)
+            desc = tk.Label(mode_frame, text=self.tr(desc_key), bg=self.theme["surface"], fg=self.theme["muted"], font=("Segoe UI", 8), wraplength=400, justify="left")
+            desc.pack(anchor="w", padx=(24, 0), pady=(0, 4))
+            self._settings_widgets["cache_modes"].append((rb, desc, label_key, desc_key))
 
-        ttk.Button(content, text="Закрыть", command=lambda: self._close_settings(window)).grid(row=9, column=0, sticky="e", padx=20, pady=(0, 18))
+        lang_title = tk.Label(inner, text=self.tr("language"), bg=self.theme["surface"], fg=self.theme["text"], font=("Segoe UI", 11, "bold"))
+        lang_title.grid(row=7, column=0, sticky="w", padx=20, pady=(10, 2))
+        lang_desc = tk.Label(inner, text=self.tr("language_desc"), bg=self.theme["surface"], fg=self.theme["muted"], font=("Segoe UI", 9), wraplength=430, justify="left")
+        lang_desc.grid(row=8, column=0, sticky="w", padx=20, pady=(0, 8))
+        lang_card = RoundedCard(inner, self.theme, radius=12, padding=1)
+        lang_card.grid(row=9, column=0, sticky="ew", padx=20, pady=(0, 12))
+        lang_inner = lang_card.content
+        lang_combo = ttk.Combobox(lang_inner, values=(self.tr("english"), self.tr("russian")), state="readonly", width=10, height=4, style="Compact.TCombobox")
+        lang_combo.pack(anchor="w", padx=12, pady=10)
+        lang_combo.set(self.tr("english") if self.language == "en" else self.tr("russian"))
+        lang_combo.bind("<<ComboboxSelected>>", self._language_selected)
+
+        close_btn = ttk.Button(inner, text=self.tr("close"), command=lambda: self._close_settings(window))
+        close_btn.grid(row=10, column=0, sticky="e", padx=20, pady=(0, 18))
+        self._settings_widgets.update({"language_title": lang_title, "language_desc": lang_desc, "language_combo": lang_combo, "close": close_btn})
+
+    def _language_selected(self, _event=None):
+        combo = self._settings_widgets.get("language_combo")
+        if combo is None:
+            return
+        value = combo.get()
+        self.language = "ru" if value == self.tr("russian") else "en"
+        self.save_settings()
+        self.apply_language()
+
+    def apply_language(self):
+        self.root.title(APP_NAME)
+        self.subtitle_label.configure(text=self.tr("subtitle"))
+        self.process_button.configure(text=self.tr("process"))
+        self.results_title_label.configure(text=self.tr("search_results"))
+        self.queue_title_label.configure(text=self.tr("queue"))
+        self.queue_hint_label.configure(text=self.tr("queue_hint"))
+        self.results_hint.configure(text=self.tr("enter_query") if not self.current_results else self.tr("double_click_hint"))
+        self.now_playing_label.configure(text=self.tr("now_playing"))
+        self.preview.configure(text=self.tr("preview") if not self.thumb_photo else "")
+        if not self.queue:
+            self.now_title.configure(text=self.tr("nothing_selected"))
+        self.playback_label.configure(text=self.tr("playback"))
+        self.mode_label.configure(text=self.tr("mode"))
+        self.volume_label.configure(text=self.tr("volume"))
+        self.add_queue_btn.configure(text=self.tr("add_to_queue"))
+        self.back_btn.configure(text="−10s" if self.language == "en" else "−10с")
+        self.fwd_btn.configure(text="+10s" if self.language == "en" else "+10с")
+        self.mode_labels = {self.tr(k): k for k in ("normal", "repeat_current", "repeat_queue", "shuffle")}
+        self.mode_combo.configure(values=tuple(self.tr(k) for k in ("normal", "repeat_current", "repeat_queue", "shuffle")))
+        self.mode_combo.set(self.tr(self.play_mode.get()))
+        self.queue_size_var.set(self.tr("queue"))
+        self.status.set(self.tr("paused" if self.paused else "playing" if self.playing else "ready"))
+        if self.search_placeholder_active or not self.query.get().strip():
+            self.set_search_placeholder()
+        self.refresh_buttons()
+        self._update_settings_language()
+
+    def _update_settings_language(self):
+        w = self._settings_widgets
+        if not w:
+            return
+        w["window"].title(f"{self.tr('settings_title')} - {APP_NAME}")
+        w["settings_title"].configure(text=self.tr("settings_title"))
+        w["search_title"].configure(text=self.tr("settings_search_results"))
+        w["search_desc"].configure(text=self.tr("settings_search_desc"))
+        w["results_label"].configure(text=self.tr("results_label"))
+        w["cache_title"].configure(text=self.tr("cache_title"))
+        w["cache_desc"].configure(text=self.tr("cache_desc"))
+        w["cache_check"].configure(text=self.tr("cache_enable"))
+        w["download_mode_label"].configure(text=self.tr("download_mode"))
+        for rb, desc, label_key, desc_key in w["cache_modes"]:
+            rb.configure(text=self.tr(label_key))
+            desc.configure(text=self.tr(desc_key))
+        w["language_title"].configure(text=self.tr("language"))
+        w["language_desc"].configure(text=self.tr("language_desc"))
+        w["language_combo"].configure(values=(self.tr("english"), self.tr("russian")))
+        w["language_combo"].set(self.tr("english") if self.language == "en" else self.tr("russian"))
+        w["close"].configure(text=self.tr("close"))
+
+    def _unexpected_error_text(self, exc):
+        return self.tr("unexpected_error", e=exc)
 
     def _close_settings(self, window):
         try:
-            window.grab_release()
-        except tk.TclError:
+            wheel = self._settings_widgets.get("wheel")
+            if wheel:
+                self._settings_widgets.get("canvas").unbind_all("<MouseWheel>")
+        except Exception:
             pass
         try:
             window.destroy()
         except tk.TclError:
             pass
+        self._settings_widgets = {}
         self.settings_window = None
 
 
@@ -594,6 +1049,7 @@ class App:
         self.input_entry.bind("<Return>", lambda _e: self.process_input())
         self.input_entry.bind("<FocusIn>", self.clear_search_placeholder)
         self.input_entry.bind("<FocusOut>", self.restore_search_placeholder)
+        self.input_entry.bind("<KeyPress>", self._search_keypress)
         self.input_entry.bind("<Control-KeyPress>", self._input_ctrl_keypress)
         self.results_listbox.bind("<Double-Button-1>", lambda _e: self.play_selected_result())
         self.queue_listbox.bind("<Double-Button-1>", lambda _e: self.play_selected_queue())
@@ -623,6 +1079,9 @@ class App:
         return None
 
     def _select_all_input(self, _event=None):
+        if self.search_placeholder_active:
+            self._hide_search_placeholder()
+            self.query.set("")
         self.input_entry.select_range(0, END)
         self.input_entry.icursor(END)
         return "break"
@@ -639,6 +1098,7 @@ class App:
     def paste_from_clipboard(self, _event=None):
         try:
             value = self.root.clipboard_get()
+            self._hide_search_placeholder()
             self.input_entry.delete(0, END)
             self.input_entry.insert(0, value)
         except tk.TclError:
@@ -659,25 +1119,25 @@ class App:
 
     def ensure_tools(self):
         if yt_dlp is None:
-            raise RuntimeError("Не установлен yt-dlp. Выполните run_windows.bat или pip install -r requirements.txt")
+            raise RuntimeError(self.tr("yt_missing"))
         if pygame is None:
-            raise RuntimeError("Не установлен pygame. Выполните run_windows.bat или pip install -r requirements.txt")
+            raise RuntimeError(self.tr("pygame_missing"))
         if shutil.which("ffmpeg") is None:
-            raise RuntimeError("Не найден ffmpeg. Он нужен для подготовки аудио-кэша OGG.")
+            raise RuntimeError(self.tr("ffmpeg_missing"))
 
     def process_input(self):
-        text = "" if self.search_placeholder_active else self.query.get().strip()
+        text = self.query.get().strip()
         if not text or self._resolving:
             return
         try:
             self.ensure_tools()
         except Exception as e:
-            messagebox.showerror("Зависимость не найдена", str(e))
+            messagebox.showerror(self.tr("dependency_missing"), str(e))
             return
 
         self._resolving = True
-        self.status.set("Обрабатываю…")
-        self.results_hint.configure(text="Получение данных с YouTube…")
+        self.status.set(self.tr("processing"))
+        self.results_hint.configure(text=self.tr("getting_data"))
         threading.Thread(target=self._process_worker, args=(text,), daemon=True).start()
 
     def _process_worker(self, text):
@@ -694,8 +1154,8 @@ class App:
 
     def _process_failed(self, error):
         self._resolving = False
-        self.status.set("Ошибка обработки")
-        messagebox.showerror("Ошибка", error)
+        self.status.set(self.tr("processing_error"))
+        messagebox.showerror(self.tr("error"), error)
 
     def extract_url(self, url):
         opts = {
@@ -718,7 +1178,7 @@ class App:
                 webpage = f"https://www.youtube.com/watch?v={vid}"
             tracks.append(Track(
                 id=str(vid or webpage),
-                title=e.get("title") or "Без названия",
+                title=e.get("title") or self.tr("no_title"),
                 url=webpage,
                 thumbnail=e.get("thumbnail") or (f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg" if vid else ""),
                 duration=float(e.get("duration") or 0),
@@ -762,7 +1222,7 @@ class App:
             vid = e.get("id")
             tracks.append(Track(
                 id=str(vid),
-                title=e.get("title") or "Без названия",
+                title=e.get("title") or self.tr("no_title"),
                 url=e.get("webpage_url") or f"https://www.youtube.com/watch?v={vid}",
                 thumbnail=e.get("thumbnail") or (f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg" if vid else ""),
                 duration=float(e.get("duration") or 0),
@@ -773,8 +1233,8 @@ class App:
     def _show_processed(self, tracks, mode):
         self._resolving = False
         if not tracks:
-            self.status.set("Ничего не найдено")
-            self.results_hint.configure(text="Ничего не найдено.")
+            self.status.set(self.tr("nothing_found_status"))
+            self.results_hint.configure(text=self.tr("nothing_found"))
             return
 
         self.current_results = tracks if mode == "search" else []
@@ -788,8 +1248,8 @@ class App:
                 self.results_listbox.insert(END, label)
             self.results_listbox.selection_set(0)
             self.results_listbox.activate(0)
-            self.results_hint.configure(text="Двойной клик — добавить и запустить. «В очередь →» — добавить без остановки текущего трека.")
-            self.status.set(f"Найдено: {len(tracks)}")
+            self.results_hint.configure(text=self.tr("double_click_hint"))
+            self.status.set(self.tr("found", n=len(tracks)))
             self.update_add_queue_button_state()
             return
 
@@ -800,8 +1260,8 @@ class App:
         priority_index = 0 if was_empty else self.current_index
         self.prefetch_tracks(tracks, priority_index=priority_index)
         self.refresh_queue_view()
-        self.status.set(f"Добавлено в очередь: {len(tracks)}")
-        self.results_hint.configure(text=f"Ссылка добавила {len(tracks)} трек(ов) в очередь.")
+        self.status.set(self.tr("added_queue", n=len(tracks)))
+        self.results_hint.configure(text=self.tr("link_added", n=len(tracks)))
         if was_empty and self.queue:
             self.start_track(0)
         elif old_len > 0:
@@ -810,7 +1270,7 @@ class App:
 
     def add_selected_result(self):
         if not self.current_results:
-            self.status.set("Сначала выполните поиск")
+            self.status.set(self.tr("search_first"))
             return
         sel = self.results_listbox.curselection()
         if not sel:
@@ -834,7 +1294,7 @@ class App:
         self.queue_listbox.selection_clear(0, END)
         self.queue_listbox.selection_set(idx)
         self.queue_listbox.see(idx)
-        self.status.set("Трек добавлен в очередь")
+        self.status.set(self.tr("track_added"))
         if self.current_index < 0:
             self.start_track(idx)
 
@@ -865,7 +1325,7 @@ class App:
         for i, track in enumerate(self.queue):
             prefix = "▶ " if i == self.current_index else ""
             self.queue_listbox.insert(END, f"{prefix}{i+1}. {track.label}")
-        self.queue_size_var.set("Очередь")
+        self.queue_size_var.set(self.tr("queue"))
         if 0 <= self.current_index < len(self.queue):
             self.queue_listbox.selection_clear(0, END)
             self.queue_listbox.selection_set(self.current_index)
@@ -914,13 +1374,13 @@ class App:
             self.current_index = -1
             self.current_audio_path = None
             self.position_anchor = 0.0
-            self.now_title.configure(text="Ничего не выбрано")
+            self.now_title.configure(text=self.tr("nothing_selected"))
             self.now_channel.configure(text="")
             self.time_label_var.set("00:00 / 00:00")
             self.slider.configure(to=100)
             self.slider.set(0)
             self.set_thumbnail(None)
-            self.status.set("Очередь пуста")
+            self.status.set(self.tr("queue"))
             self.refresh_queue_view()
             self.refresh_buttons()
             return
@@ -930,12 +1390,12 @@ class App:
             next_index = min(max(old_current - sum(i < old_current for i in indices), 0), len(self.queue) - 1)
             self.current_index = -1
             self.refresh_queue_view()
-            self.status.set("Трек удалён. Переключение…")
+            self.status.set(self.tr("track_removed_play"))
             self.start_track(next_index)
             return
 
         self.refresh_queue_view()
-        self.status.set(f"Удалено из очереди: {len(indices)}")
+        self.status.set(self.tr("removed_queue", n=len(indices)))
 
     def clear_queue(self):
         self.stop_audio()
@@ -945,13 +1405,13 @@ class App:
         self.current_results = []
         self.results_listbox.delete(0, END)
         self.queue_listbox.delete(0, END)
-        self.queue_size_var.set("Очередь")
-        self.now_title.configure(text="Ничего не выбрано")
+        self.queue_size_var.set(self.tr("queue"))
+        self.now_title.configure(text=self.tr("nothing_selected"))
         self.now_channel.configure(text="")
         self.time_label_var.set("00:00 / 00:00")
         self.slider.configure(to=100)
         self.slider.set(0)
-        self.status.set("Очередь очищена")
+        self.status.set(self.tr("queue_cleared"))
         self.set_thumbnail(None)
         self.refresh_buttons()
 
@@ -967,7 +1427,7 @@ class App:
         self.position_anchor_monotonic = time.monotonic()
         self.mixer_pos_anchor_ms = 0
         self.update_now_playing(track, self.position_anchor)
-        self.status.set("Готовлю аудио…")
+        self.status.set(self.tr("preparing_audio"))
         self.playing = False
         self.paused = False
         self.refresh_queue_view()
@@ -1020,7 +1480,7 @@ class App:
             except Exception:
                 continue
         if tracks or force_reschedule or order:
-            self.status.set(f"В очереди: {len(self.queue)} · Кэширование запущено")
+            self.status.set(self.tr("queue_status", n=len(self.queue)))
 
     def ensure_cache_future(self, track):
         key = str(track.id or track.url)
@@ -1064,7 +1524,7 @@ class App:
             # Some yt-dlp/FFmpeg combinations strip the temporary suffix before conversion.
             candidates = [p for p in AUDIO_CACHE_DIR.glob(f"{safe_id}.*") if p.suffix.lower() == ".ogg"]
         if not candidates:
-            raise RuntimeError("Не удалось подготовить OGG-аудио. Проверьте наличие ffmpeg.")
+            raise RuntimeError(self.tr("ffmpeg_missing"))
         source = max(candidates, key=lambda p: p.stat().st_mtime)
         if source != cached:
             try:
@@ -1084,9 +1544,9 @@ class App:
             return
         self.playing = False
         self.paused = False
-        self.status.set("Ошибка воспроизведения")
+        self.status.set(self.tr("playback_error"))
         self.refresh_buttons()
-        messagebox.showerror("Воспроизведение", error)
+        messagebox.showerror(self.tr("playback_error"), error)
 
     def _play_local_file(self, generation, index, audio_path, start_position):
         if generation != self.seek_generation or index != self.current_index or self._closing:
@@ -1105,7 +1565,7 @@ class App:
             self.mixer_pos_anchor_ms = max(0, int(pygame.mixer.music.get_pos()))
             self.playing = True
             self.paused = False
-            self.status.set("Воспроизведение")
+            self.status.set(self.tr("playing"))
             self.refresh_buttons()
         except Exception as e:
             self._play_failed(generation, str(e))
@@ -1126,9 +1586,9 @@ class App:
                 pygame.mixer.music.pause()
                 self.playing = False
                 self.paused = True
-                self.status.set("Пауза")
+                self.status.set(self.tr("paused"))
             except Exception as e:
-                self.status.set(f"Ошибка паузы: {e}")
+                self.status.set(self.tr("pause_error", e=e))
             self.refresh_buttons()
             return
 
@@ -1147,9 +1607,9 @@ class App:
                 self.position_anchor_monotonic = time.monotonic()
                 self.playing = True
                 self.paused = False
-                self.status.set("Воспроизведение")
+                self.status.set(self.tr("playing"))
             except Exception as e:
-                self.status.set(f"Ошибка продолжения: {e}")
+                self.status.set(self.tr("resume_error", e=e))
             self.refresh_buttons()
             return
 
@@ -1245,7 +1705,7 @@ class App:
             self.slider.set(target)
             self.time_label_var.set(f"{fmt_time(target)} / {fmt_time(duration)}")
         except Exception as e:
-            self.status.set(f"Перемотка: {e}")
+            self.status.set(self.tr("seek_error", e=e))
         self.refresh_buttons()
 
     def current_position(self):
@@ -1314,7 +1774,7 @@ class App:
         elif mode == "repeat_queue" and self.queue:
             self.start_track(0)
         else:
-            self.status.set("Очередь закончена")
+            self.status.set(self.tr("queue_finished"))
             self.refresh_buttons()
 
     def update_now_playing(self, track, position=0.0):
@@ -1328,7 +1788,7 @@ class App:
 
     def set_thumbnail(self, url):
         if not url or Image is None:
-            self.preview.configure(image="", text="Превью")
+            self.preview.configure(image="", text=self.tr("preview"))
             self.thumb_photo = None
             return
 
@@ -1343,7 +1803,7 @@ class App:
                 photo = ImageTk.PhotoImage(img)
                 self.root.after(0, lambda: self._set_photo(photo))
             except Exception:
-                self.root.after(0, lambda: self.preview.configure(image="", text="Превью недоступно"))
+                self.root.after(0, lambda: self.preview.configure(image="", text=self.tr("preview_unavailable")))
         threading.Thread(target=worker, daemon=True).start()
 
     def _set_photo(self, photo):
@@ -1388,6 +1848,14 @@ class App:
 
     def on_close(self):
         self._closing = True
+        for child in (self.legal_window, self.settings_window):
+            try:
+                if child is not None and child.winfo_exists():
+                    child.destroy()
+            except tk.TclError:
+                pass
+        self.legal_window = None
+        self.settings_window = None
         self.seek_generation += 1
         try:
             self.stop_audio()
@@ -1417,11 +1885,13 @@ def fmt_time(seconds):
 
 
 def main():
+    configure_windows_app_identity()
     root = tk.Tk()
     icon_path = APP_DIR / "sonus.ico"
     if icon_path.exists():
         try:
             root.iconbitmap(str(icon_path))
+            apply_windows_icon(root, icon_path)
         except tk.TclError:
             pass
     App(root)
@@ -1433,7 +1903,7 @@ if __name__ == "__main__":
         main()
     except Exception as exc:
         try:
-            messagebox.showerror("YouTube Music Desktop", f"Произошла непредвиденная ошибка:\n\n{exc}")
+            messagebox.showerror(APP_NAME, self._unexpected_error_text(exc))
         except Exception:
             pass
         raise
