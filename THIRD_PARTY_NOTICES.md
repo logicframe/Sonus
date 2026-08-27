@@ -4,7 +4,7 @@ Sonus uses third-party software. This file is a short notice, not a replacement 
 
 ## yt-dlp
 
-Sonus uses [yt-dlp](https://github.com/yt-dlp/yt-dlp) for YouTube search and media extraction.
+Sonus uses [yt-dlp](https://github.com/yt-dlp/yt-dlp) for YouTube search and media access.
 
 yt-dlp is released under the Unlicense. See the project's license and third-party notices for the exact terms.
 
