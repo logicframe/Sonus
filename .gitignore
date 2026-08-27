@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Sonus runtime data
+cache/
+settings.json
+
+# IDEs
+.idea/
+.vscode/
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Build / packaging output
+build/
+dist/
+*.spec
