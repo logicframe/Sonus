@@ -35,3 +35,12 @@ All notable changes to Sonus are documented in this file.
 - Settings window scrolling and application shutdown behavior.
 
 [1.0.0]: https://github.com/LogicFrame/Sonus/releases/tag/v1.0.0
+
+
+### Legal / Release policy
+
+- Added a one-time first-run legal notice and acknowledgement.
+- Streaming is the default cache mode.
+- Standardized release guidance to source-only releases without bundled third-party binaries.
+- Added legal and DMCA guidance to project documentation.
+- Standardized the launcher branding to Sonus.
