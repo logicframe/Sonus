@@ -19,6 +19,7 @@ All notable changes to Sonus are documented in this file.
 - Sequential, repeat-queue and random playback modes.
 - Configurable search results from 1 to 50.
 - Dark Sonus interface with rounded panels.
+- English and Russian interface languages.
 - Application icon and console-free GUI launch.
 - Automatic cache cleanup at application startup.
 - Automatic Windows setup through `run_windows.bat`.
