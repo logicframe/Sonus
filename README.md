@@ -11,18 +11,19 @@ Sonus is a simple desktop application for listening to audio from YouTube withou
 - Add a YouTube playlist to the queue.
 - Combine playlists and individual videos in one queue.
 - Play, pause, skip forward, go back and seek through a track.
-- Adjust playback volume.
+- Adjust playback volume without restarting the track.
 - Background audio caching with selectable download modes.
 - Sequential, repeat-queue and random playback modes.
 - Configurable search result count from 1 to 50.
 - Dark Sonus interface with rounded panels.
 - English and Russian interface languages.
+- Windows GUI mode without a persistent console window.
 
 ## Requirements
 
 - Windows 10 or Windows 11.
 - Internet connection for search and first-time audio downloads.
-- WinGet for automatic setup of missing components(It's installed by default on Windows 10/11 as part of "App Installer").
+- WinGet for automatic setup of missing components.
 
 The Global Windows launcher installs Python 3.13 and the Python dependencies automatically when needed. It also checks for FFmpeg and attempts to install it through WinGet when it is not available.
 
@@ -101,7 +102,7 @@ Their respective licenses apply to those components. The project does not relice
 
 Sonus is an independent desktop application and is not affiliated with, endorsed by, or sponsored by YouTube or Google.
 
-Users are responsible for complying with applicable laws, copyright restrictions, and the terms of the services they access. Only use content that you are permitted to access or download.
+Users are responsible for complying with applicable laws, copyright restrictions, and the terms of the services they access. Only use content that you are permitted to access.
 
 ## License
 
@@ -111,7 +112,7 @@ Sonus is licensed under the [MIT License](LICENSE).
 
 # Sonus - Русский
 
-> Лёгкий десктопный аудиоплеер YouTube для Windows.
+> Лёгкий настольный аудиоплеер YouTube для Windows.
 
 Sonus — простое настольное приложение для прослушивания аудио с YouTube без отображения самого видео. Поддерживаются отдельные видео, плейлисты, текстовый поиск, управление очередью, фоновое кэширование, управление воспроизведением и громкостью.
 
@@ -122,18 +123,19 @@ Sonus — простое настольное приложение для про
 - Добавление плейлистов YouTube в очередь.
 - Объединение плейлистов и отдельных видео в одной очереди.
 - Воспроизведение, пауза, переход вперёд/назад и перемотка.
-- Изменение громкости.
+- Изменение громкости без перезапуска трека.
 - Фоновое кэширование аудио с выбором режима загрузки.
 - Последовательное, повторное и случайное воспроизведение очереди.
 - Настраиваемое количество результатов поиска от 1 до 50.
 - Тёмный интерфейс Sonus со скруглёнными панелями.
-- Английский и русский языки интерфейсы.
+- Английский и русский языки интерфейса.
+- Графический режим Windows без постоянно открытой консоли.
 
 ## Требования
 
 - Windows 10 или Windows 11.
 - Подключение к интернету для поиска и первой загрузки аудио.
-- WinGet для автоматической установки отсутствующих компонентов(установлен в windows 10/11 по умолчанию).
+- WinGet для автоматической установки отсутствующих компонентов.
 
 Глобальный Windows-лаунчер автоматически устанавливает Python 3.13 и Python-зависимости при необходимости. Он также проверяет наличие FFmpeg и пытается установить его через WinGet, если FFmpeg отсутствует.
 
@@ -212,8 +214,42 @@ Sonus использует сторонние программы и библио
 
 Sonus является независимым приложением и не связан с YouTube или Google, не одобрен и не спонсируется ими.
 
-Пользователь самостоятельно отвечает за соблюдение применимого законодательства, авторских прав и условий используемых сервисов. Используйте только тот контент, к которому у вас есть право доступа или загрузки.
+Пользователь самостоятельно отвечает за соблюдение применимого законодательства, авторских прав и условий используемых сервисов. Используйте только тот контент, к которому у вас есть право доступа.
 
 ## Лицензия
 
 Sonus распространяется по лицензии [MIT License](LICENSE).
+
+
+## Legal notice
+
+### First-run acknowledgement
+
+On first launch, Sonus displays a short legal notice. The application requires the user to acknowledge it before normal use. The acknowledgement is stored locally in the application settings.
+
+Sonus is an independent open-source desktop player and is not affiliated with, endorsed by, or sponsored by YouTube or Google. Sonus is intended for personal, non-commercial use. Sonus does not host, store, or distribute YouTube media; content is accessed at the user's request and may be temporarily cached on the user's device for playback and time-shifting. Users are responsible for complying with applicable law, copyright restrictions, creators' rights, and the terms of services they access. Only use content you are permitted to access.
+
+### Copyright concerns (DMCA)
+
+This repository contains source code and no hosted media. If you are a rights holder and believe specific repository content infringes your rights, please contact the repository maintainer first. GitHub also provides a DMCA takedown process for qualifying copyright complaints.
+
+## Release policy
+
+Official GitHub Releases are source-only. This repository does not publish bundled executable releases or archives containing third-party binaries. Release screenshots and other media are limited to content that the project has the right to use, such as original project assets or appropriately licensed / Creative Commons material.
+
+
+## Юридическое уведомление
+
+### Первоначальное уведомление
+
+При первом запуске Sonus показывает краткое юридическое уведомление. Для начала обычной работы пользователь должен подтвердить, что ознакомился с ним. Подтверждение хранится локально в настройках приложения.
+
+Sonus — независимый проект с открытым исходным кодом. Он не связан с YouTube или Google, не одобрен ими и не спонсируется ими. Sonus предназначен для личного некоммерческого использования. Sonus не размещает, не хранит и не распространяет медиаконтент YouTube; контент запрашивается пользователем и может временно кэшироваться на устройстве для воспроизведения и перемотки. Пользователь несёт ответственность за соблюдение применимого законодательства, ограничений авторского права, прав создателей контента и условий сервисов, к которым обращается приложение. Используйте только контент, к которому у вас есть право доступа.
+
+### Вопросы авторского права (DMCA)
+
+В репозитории отсутствует размещённый медиаконтент. Если правообладатель считает, что конкретный материал репозитория нарушает его права, рекомендуется сначала связаться с сопровождающим проекта. GitHub также предоставляет процедуру DMCA для соответствующих жалоб об авторских правах.
+
+## Политика релизов
+
+Официальные GitHub Releases распространяются только в виде исходного кода. Репозиторий не публикует готовые исполняемые файлы и архивы со сторонними бинарными файлами. Скриншоты и другие материалы для релизов ограничиваются контентом, на использование которого у проекта есть права: собственными материалами или материалами с подходящей лицензией / Creative Commons.
