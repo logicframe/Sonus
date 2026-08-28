@@ -18,6 +18,7 @@ Sonus is a simple desktop application for listening to audio from YouTube withou
 - Dark Sonus interface with rounded panels.
 - English and Russian interface languages.
 - Windows GUI mode without a persistent console window.
+- Keyboard shortcuts for volume and track navigation.
 
 ## Requirements
 
@@ -65,10 +66,17 @@ The text search uses a music-oriented YouTube search first and falls back to the
 
 ```text
 Sonus/
-├── app.py
+├── app.py                         # minimal entry point
+├── run_windows.bat                # Windows setup and launcher
 ├── requirements.txt
-├── run_windows.bat
 ├── sonus.ico
+├── sonus/
+│   ├── app.py                     # application coordinator
+│   ├── main.py                    # application startup
+│   ├── config/                    # constants and shared configuration
+│   ├── core/                      # playback, queue, cache and platform logic
+│   ├── services/                  # YouTube / yt-dlp integration
+│   └── ui/                        # main UI, settings and widgets
 ├── CHANGELOG.md
 ├── LICENSE
 └── .gitignore
@@ -76,7 +84,9 @@ Sonus/
 
 ## Development
 
-The application is currently implemented in Python using Tkinter for the desktop interface and pygame for audio playback. YouTube metadata and downloads are handled through yt-dlp, while FFmpeg is used for audio preparation.
+The application is implemented in Python using Tkinter for the desktop interface and pygame for audio playback. YouTube metadata and downloads are handled through yt-dlp, while FFmpeg is used for audio preparation.
+
+The codebase is split into focused modules so that playback, queue management, caching, YouTube services, UI and platform-specific behavior can be maintained independently.
 
 To run the source directly in an existing compatible Python environment:
 
@@ -130,6 +140,7 @@ Sonus — простое настольное приложение для про
 - Тёмный интерфейс Sonus со скруглёнными панелями.
 - Английский и русский языки интерфейса.
 - Графический режим Windows без постоянно открытой консоли.
+- Горячие клавиши для управления громкостью и переходами между треками.
 
 ## Требования
 
@@ -177,10 +188,17 @@ Sonus может загружать треки в локальный кэш в �
 
 ```text
 Sonus/
-├── app.py
+├── app.py                         # минимальная точка входа
+├── run_windows.bat                # настройка и запуск в Windows
 ├── requirements.txt
-├── run_windows.bat
 ├── sonus.ico
+├── sonus/
+│   ├── app.py                     # координатор приложения
+│   ├── main.py                    # запуск приложения
+│   ├── config/                    # константы и общая конфигурация
+│   ├── core/                      # воспроизведение, очередь, кэш и Windows-логика
+│   ├── services/                  # интеграция с YouTube / yt-dlp
+│   └── ui/                        # интерфейс, настройки и виджеты
 ├── CHANGELOG.md
 ├── LICENSE
 └── .gitignore
