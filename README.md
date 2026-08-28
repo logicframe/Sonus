@@ -28,6 +28,12 @@ Sonus is a simple desktop application for listening to audio from YouTube withou
 
 The Global Windows launcher installs Python 3.13 and the Python dependencies automatically when needed. It also checks for FFmpeg and attempts to install it through WinGet when it is not available.
 
+## Important / Важно
+
+This application requires access to YouTube. In regions where YouTube access is restricted, you may need to use a VPN, proxy, or other software to enable access. The application uses system network and proxy settings.
+
+Для работы приложения требуется доступ к YouTube. В связи с ограничениями доступа в некоторых регионах (например, Россия) может потребоваться использование VPN, прокси или другого программного обеспечения для обеспечения доступа к сервису YouTube. Приложение использует системные настройки сети и прокси.
+
 ## Quick start
 
 1. Download the latest release from the **Releases** page.

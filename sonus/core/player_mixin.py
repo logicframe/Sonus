@@ -54,26 +54,27 @@ class PlayerMixin:
             audio_path = future.result()
             self.root.after(0, lambda: self._play_local_file(generation, index, audio_path, start_position))
         except Exception as e:
-            self.root.after(0, lambda: self._play_failed(generation, str(e), automatic=automatic))
+            error_message = str(e)
+            self.root.after(0, lambda: self._play_failed(generation, error_message, automatic=automatic))
 
     def _play_failed(self, generation, error, automatic=False):
         if generation != self.seek_generation or self._closing:
             return
         self.playing = False
         self.paused = False
-        if automatic and self._is_unavailable_error_text(error):
+        if self._is_unavailable_error_text(error):
             # Do not immediately overwrite the useful status with the next
             # track's "preparing" message. Keep the information visible briefly
-            # and then continue automatically.
-            self.status.set(self.tr("skip_unavailable"))
+            # and then continue automatically, regardless of how the track was started.
             failed_index = self.current_index
+            title = self.queue[failed_index].title if 0 <= failed_index < len(self.queue) else self.tr("no_title")
+            self.status.set(self.tr("skip_unavailable", title=title))
             self.refresh_buttons()
             self.root.after(450, lambda: self._continue_after_unavailable(generation, failed_index))
             return
-        self.status.set(self.tr("track_unavailable_status") if self._is_unavailable_error_text(error) else self.tr("playback_error"))
+        self.status.set(self.tr("playback_error"))
         self.refresh_buttons()
-        if not self._is_unavailable_error_text(error):
-            messagebox.showerror(self.tr("playback_error"), error)
+        messagebox.showerror(self.tr("playback_error"), error)
 
     def _play_local_file(self, generation, index, audio_path, start_position):
         if generation != self.seek_generation or index != self.current_index or self._closing:
@@ -113,6 +114,8 @@ class PlayerMixin:
 
     def _continue_after_unavailable(self, generation, failed_index):
         if self._closing or generation != self.seek_generation or not self.queue:
+            return
+        if failed_index != self.current_index:
             return
         # The queue may have changed while the short status message was shown.
         if not (0 <= failed_index < len(self.queue)):
@@ -162,7 +165,7 @@ class PlayerMixin:
             if self.queue:
                 self.start_track(0)
             return
-        if self._resolving or self.current_audio_path is None:
+        if self._resolving:
             return
     
         if self.playing:
@@ -200,7 +203,10 @@ class PlayerMixin:
             self.refresh_buttons()
             return
     
-        self._play_local_file(self.seek_generation, self.current_index, self.current_audio_path, self.position_anchor)
+        if self.current_audio_path is None:
+            self.start_track(self.current_index)
+        else:
+            self._play_local_file(self.seek_generation, self.current_index, self.current_audio_path, self.position_anchor)
 
     def stop_audio(self):
         self.playing = False
@@ -346,7 +352,13 @@ class PlayerMixin:
             return
         mode = self.play_mode.get()
         if mode == "repeat_current" and self.current_index >= 0:
-            self.start_track(self.current_index, automatic=True)
+            current_key = str(self.queue[self.current_index].id or self.queue[self.current_index].url)
+            if current_key not in self.cache_failures:
+                self.start_track(self.current_index, automatic=True)
+                return
+            # A track already known to be unavailable must not be retried by
+            # Repeat current. Reuse the normal unavailable-track continuation.
+            self._continue_after_unavailable(self.seek_generation, self.current_index)
             return
         if mode == "shuffle" and self.queue:
             import random

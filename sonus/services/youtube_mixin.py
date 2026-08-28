@@ -35,7 +35,8 @@ class YouTubeMixin:
                 mode = "search"
             self.root.after(0, lambda: self._show_processed(tracks, mode, unavailable_error))
         except Exception as e:
-            self.root.after(0, lambda: self._process_failed(str(e)))
+            error_message = str(e)
+            self.root.after(0, lambda: self._process_failed(error_message))
 
     def _process_failed(self, error):
         self._resolving = False
@@ -160,7 +161,7 @@ class YouTubeMixin:
             return
     
         if mode == "url" and len(tracks) == 1 and unavailable_error:
-            self.status.set(self.tr("track_unavailable_status"))
+            self.status.set(self.tr("track_unavailable_status", title=track.title))
             return
 
         # A URL adds its contents; it never replaces an existing queue.
@@ -246,5 +247,5 @@ class YouTubeMixin:
         self._queue_validation_pending.discard(str(track.id or track.url))
         if self._closing:
             return
-        self.status.set(self.tr("track_unavailable_status"))
+        self.status.set(self.tr("track_unavailable_status", title=track.title))
 
