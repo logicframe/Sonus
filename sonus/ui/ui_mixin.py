@@ -198,7 +198,7 @@ class UIMixin:
         self.volume_scale.bind("<Button-1>", self.volume_mouse_down)
         self.volume_scale.bind("<B1-Motion>", self.volume_mouse_drag)
         self.volume_scale.bind("<ButtonRelease-1>", self.volume_mouse_up)
-        self.volume_value = ttk.Label(bottom, text="80%", width=5)
+        self.volume_value = ttk.Label(bottom, text=f"{self.volume.get()}%", width=5)
         self.volume_value.pack(side=LEFT, padx=(4, 0))
         self.add_queue_btn = ttk.Button(bottom, text=self.tr("add_to_queue"), command=self.add_selected_result)
         self.results_listbox.bind("<<ListboxSelect>>", lambda _e: self.update_add_queue_button_state(), add="+")
@@ -358,7 +358,11 @@ class UIMixin:
     def _hotkey_volume_change(self, delta, _event=None):
         if not self._hotkeys_allowed():
             return None
-        level = max(0, min(100, int(self.volume.get()) + int(delta)))
+        self.set_volume(self.volume.get() + int(delta))
+        return "break"
+
+    def set_volume(self, level):
+        level = self._clamp_int(level, 0, 100)
         self.volume.set(level)
         self.volume_value.configure(text=f"{level}%")
         if pygame is not None:
@@ -366,7 +370,16 @@ class UIMixin:
                 pygame.mixer.music.set_volume(level / 100.0)
             except Exception:
                 pass
-        return "break"
+        self._schedule_settings_save()
+
+    def _schedule_settings_save(self):
+        pending = getattr(self, "_settings_save_after_id", None)
+        if pending:
+            try:
+                self.root.after_cancel(pending)
+            except Exception:
+                pass
+        self._settings_save_after_id = self.root.after(600, self.save_settings)
 
     def _hotkey_volume_up(self, event=None):
         return self._hotkey_volume_change(5, event)
@@ -462,7 +475,7 @@ class UIMixin:
         self.time_label_var.set(f"{fmt_time(position)} / {fmt_time(duration)}")
         self.set_thumbnail(track.thumbnail)
 
-    def set_thumbnail(self, url):
+    def set_thumbnail(self, url, force_refresh=False):
         if not url or Image is None:
             self.preview.configure(image="", text=self.tr("preview"))
             self.thumb_photo = None
@@ -472,8 +485,22 @@ class UIMixin:
             try:
                 key = re.sub(r"[^A-Za-z0-9_-]", "_", url)[-80:] + ".jpg"
                 path = CACHE_DIR / key
+
+                if force_refresh and path.exists():
+                    try:
+                        path.unlink()
+                    except OSError:
+                        pass
+
+                if path.exists():
+                    if path.stat().st_size < 1024:
+                        path.unlink()
+
                 if not path.exists():
                     urllib.request.urlretrieve(url, path)
+                    if not path.exists() or path.stat().st_size < 1024:
+                        raise RuntimeError("Thumbnail file too small or missing")
+
                 img = Image.open(path).convert("RGB")
                 img.thumbnail((440, 248))
                 photo = ImageTk.PhotoImage(img)
@@ -491,14 +518,7 @@ class UIMixin:
     def volume_mouse_position(self, event):
         width = max(1, self.volume_scale.winfo_width())
         x = max(0, min(width, int(event.x)))
-        level = round((x / width) * 100)
-        self.volume.set(level)
-        self.volume_value.configure(text=f"{level}%")
-        if pygame is not None:
-            try:
-                pygame.mixer.music.set_volume(level / 100.0)
-            except Exception:
-                pass
+        self.set_volume(round((x / width) * 100))
 
     def volume_mouse_down(self, event):
         self._volume_dragging = True
@@ -536,6 +556,10 @@ class UIMixin:
             pass
         try:
             self.cache_executor.shutdown(wait=False, cancel_futures=True)
+        except Exception:
+            pass
+        try:
+            self.save_settings()
         except Exception:
             pass
         try:

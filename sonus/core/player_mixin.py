@@ -1,4 +1,5 @@
 from ..config.common import *
+import concurrent.futures
 from ..core.models import Track
 from ..ui.widgets import RoundedCard
 from ..core.utils import fmt_time
@@ -51,8 +52,11 @@ class PlayerMixin:
 
     def _prepare_and_play(self, generation, index, future, start_position, automatic=False):
         try:
-            audio_path = future.result()
+            audio_path = future.result(timeout=30)
             self.root.after(0, lambda: self._play_local_file(generation, index, audio_path, start_position))
+        except concurrent.futures.TimeoutError:
+            error_message = "Timeout: трек не подготовлен за 30 секунд"
+            self.root.after(0, lambda: self._play_failed(generation, error_message, automatic=automatic))
         except Exception as e:
             error_message = str(e)
             self.root.after(0, lambda: self._play_failed(generation, error_message, automatic=automatic))
@@ -62,13 +66,22 @@ class PlayerMixin:
             return
         self.playing = False
         self.paused = False
-        if self._is_unavailable_error_text(error):
+        is_unavailable = self._is_unavailable_error_text(error)
+        is_network = self._is_network_error_text(error)
+        is_timeout = "timeout" in str(error).lower()
+        if is_unavailable or is_network or is_timeout:
             # Do not immediately overwrite the useful status with the next
             # track's "preparing" message. Keep the information visible briefly
             # and then continue automatically, regardless of how the track was started.
             failed_index = self.current_index
-            title = self.queue[failed_index].title if 0 <= failed_index < len(self.queue) else self.tr("no_title")
-            self.status.set(self.tr("skip_unavailable", title=title))
+            track_title = self.queue[failed_index].title if 0 <= failed_index < len(self.queue) else self.tr("no_title")
+            if is_timeout:
+                status_key = "skip_timeout"
+            elif is_unavailable:
+                status_key = "skip_unavailable"
+            else:
+                status_key = "skip_network"
+            self.status.set(self.tr(status_key, title=track_title))
             self.refresh_buttons()
             self.root.after(450, lambda: self._continue_after_unavailable(generation, failed_index))
             return
@@ -99,6 +112,19 @@ class PlayerMixin:
             self._play_failed(generation, str(e), automatic=getattr(self, "_current_start_automatic", False))
 
     @staticmethod
+    def _is_network_error_text(error_text):
+        """Проверить текст ошибки на сетевые проблемы."""
+        text = str(error_text).lower()
+        network_markers = (
+            "http error 403", "http error 404", "http error 500", "http error 502",
+            "http error 503", "http error 504", "connection refused", "connection reset",
+            "timed out", "timeout", "handshake operation timed out", "no route to host",
+            "network is unreachable", "name or service not known", "unable to download",
+            "unable to extract", "getaddrinfo failed"
+        )
+        return any(marker in text for marker in network_markers)
+
+    @staticmethod
     def _is_unavailable_error_text(error):
         text = str(error).lower()
         markers = (
@@ -112,50 +138,94 @@ class PlayerMixin:
         )
         return any(marker in text for marker in markers)
 
+    def _retry_network_for_index(self, index):
+        if not (0 <= index < len(self.queue)):
+            return False
+        track = self.queue[index]
+        key = str(track.id or track.url)
+        with self.cache_lock:
+            err = self.cache_failures.get(key)
+            if err is not None and self._is_network_error(err) and not self._is_unavailable_error(err):
+                del self.cache_failures[key]
+                self.cache_futures.pop(key, None)
+                return True
+        return False
+
     def _continue_after_unavailable(self, generation, failed_index):
         if self._closing or generation != self.seek_generation or not self.queue:
             return
         if failed_index != self.current_index:
             return
-        # The queue may have changed while the short status message was shown.
         if not (0 <= failed_index < len(self.queue)):
             return
+
         mode = self.play_mode.get()
+        failed_key = str(self.queue[failed_index].id or self.queue[failed_index].url)
         failed_keys = set(self.cache_failures)
+
+        if mode == "repeat_current":
+            # Повтор текущего невозможен — ищем следующий доступный трек.
+            nxt = failed_index + 1
+            while nxt < len(self.queue):
+                track = self.queue[nxt]
+                key = str(track.id or track.url)
+                if key not in self.cache_failures:
+                    self.start_track(nxt, automatic=True)
+                    return
+                nxt += 1
+            self.status.set(self.tr("queue_finished"))
+            self.refresh_buttons()
+            return
+
+        if mode == "repeat_queue":
+            # Сначала идём дальше по очереди, а только после её конца
+            # возвращаемся к началу, пропуская известные ошибки.
+            nxt = failed_index + 1
+            while nxt < len(self.queue):
+                track = self.queue[nxt]
+                key = str(track.id or track.url)
+                if key not in self.cache_failures:
+                    self.start_track(nxt, automatic=True)
+                    return
+                nxt += 1
+
+            self.clear_network_failures()
+            nxt = 0
+            while nxt <= failed_index:
+                track = self.queue[nxt]
+                key = str(track.id or track.url)
+                if key not in self.cache_failures:
+                    self.start_track(nxt, automatic=True)
+                    return
+                nxt += 1
+
+            self.status.set(self.tr("queue_finished"))
+            self.refresh_buttons()
+            return
 
         if mode == "shuffle":
             import random
-            choices = [
+            available = [
                 i for i in range(len(self.queue))
                 if i != failed_index
                 and str(self.queue[i].id or self.queue[i].url) not in failed_keys
             ]
-            if not choices:
+            if available:
+                self.start_track(random.choice(available), automatic=True)
+            else:
                 self.status.set(self.tr("queue_finished"))
                 self.refresh_buttons()
-                return
-            self.start_track(random.choice(choices), automatic=True)
             return
 
-        # For automatic playback, an unavailable current item is always skipped
-        # forward. This also prevents Repeat current from retrying the same bad
-        # item forever.
+        # Обычный режим: следующий доступный трек.
         nxt = failed_index + 1
-        while nxt < len(self.queue) and str(self.queue[nxt].id or self.queue[nxt].url) in failed_keys:
-            nxt += 1
-
-        if nxt < len(self.queue):
-            self.start_track(nxt, automatic=True)
-            return
-
-        if mode == "repeat_queue":
-            candidates = [
-                i for i in range(len(self.queue))
-                if str(self.queue[i].id or self.queue[i].url) not in failed_keys
-            ]
-            if candidates:
-                self.start_track(candidates[0], automatic=True)
+        while nxt < len(self.queue):
+            track = self.queue[nxt]
+            key = str(track.id or track.url)
+            if key not in self.cache_failures:
+                self.start_track(nxt, automatic=True)
                 return
+            nxt += 1
 
         self.status.set(self.tr("queue_finished"))
         self.refresh_buttons()
@@ -367,6 +437,13 @@ class PlayerMixin:
                 choices = list(range(len(self.queue)))
             choices = [i for i in choices if str(self.queue[i].id or self.queue[i].url) not in self.cache_failures]
             if not choices:
+                self.clear_network_failures()
+                choices = [
+                    i for i in range(len(self.queue))
+                    if i != self.current_index
+                    and str(self.queue[i].id or self.queue[i].url) not in self.cache_failures
+                ]
+            if not choices:
                 self.status.set(self.tr("queue_finished"))
                 self.refresh_buttons()
                 return
@@ -378,6 +455,7 @@ class PlayerMixin:
         if nxt < len(self.queue):
             self.start_track(nxt, automatic=True)
         elif mode == "repeat_queue" and self.queue:
+            self.clear_network_failures()
             candidates = [i for i in range(len(self.queue)) if str(self.queue[i].id or self.queue[i].url) not in self.cache_failures]
             if candidates:
                 self.start_track(candidates[0], automatic=True)

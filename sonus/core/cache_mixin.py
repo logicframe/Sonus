@@ -55,7 +55,7 @@ class CacheMixin:
                     future.result()
                     return future
                 except Exception as exc:
-                    if self._is_unavailable_error(exc):
+                    if self._is_unavailable_error(exc) or self._is_network_error(exc):
                         self.cache_failures[key] = exc
                     else:
                         self.cache_futures.pop(key, None)
@@ -85,23 +85,53 @@ class CacheMixin:
         )
         return any(marker in text for marker in markers)
 
+    @staticmethod
+    def _is_network_error(error):
+        """Проверить, является ли ошибка сетевой (403, 404, 500, timeout и т. п.)."""
+        text = str(error).lower()
+        network_markers = (
+            "http error 403", "http error 404", "http error 500", "http error 502",
+            "http error 503", "http error 504", "connection refused", "connection reset",
+            "timed out", "timeout", "handshake operation timed out", "no route to host",
+            "network is unreachable", "name or service not known", "unable to download",
+            "unable to extract", "getaddrinfo failed"
+        )
+        return any(marker in text for marker in network_markers)
+
     def _remember_cache_failure(self, track, future):
+        """Пометить трек как недоступный или временно недоступный по сети."""
         try:
             error = future.exception()
         except Exception as exc:
             error = exc
-        if error is None or self._closing or not self._is_unavailable_error(error):
+
+        if error is None or self._closing:
             return
+
+        if not (self._is_unavailable_error(error) or self._is_network_error(error)):
+            return
+
         key = str(track.id or track.url)
         with self.cache_lock:
             self.cache_failures[key] = error
+
+    def clear_network_failures(self):
+        """Очистить сетевые ошибки из cache_failures, оставив только недоступные треки."""
+        with self.cache_lock:
+            keys_to_remove = []
+            for key, error in self.cache_failures.items():
+                if self._is_network_error(error) and not self._is_unavailable_error(error):
+                    keys_to_remove.append(key)
+            for key in keys_to_remove:
+                del self.cache_failures[key]
+                self.cache_futures.pop(key, None)
 
     def get_or_download_ogg(self, track):
         safe_id = re.sub(r"[^A-Za-z0-9_-]", "_", track.id or "track")
         cached = AUDIO_CACHE_DIR / f"{safe_id}.ogg"
         if cached.exists() and cached.stat().st_size >= 4096:
             return cached
-    
+
         partial = AUDIO_CACHE_DIR / f"{safe_id}.part"
         outtmpl = str(partial)
         opts = {
@@ -110,6 +140,11 @@ class CacheMixin:
             "format": "bestaudio/best",
             "outtmpl": outtmpl,
             "noplaylist": True,
+            "socket_timeout": 10,  # уменьшенный таймаут на сетевые операции (секунды)
+            "retries": 1,  # одна повторная попытка при ошибке сети
+            "http_headers": {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            },
             "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "vorbis", "preferredquality": "160"}],
             "postprocessor_args": ["-vn"],
         }

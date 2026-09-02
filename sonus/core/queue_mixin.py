@@ -8,7 +8,12 @@ class QueueMixin:
         sel = self.queue_listbox.curselection()
         if not sel:
             return
-        self.start_track(sel[0])
+        index = sel[0]
+        track = self.queue[index]
+        retry_requested = self._retry_network_for_index(index)
+        self.start_track(index)
+        if retry_requested:
+            self.status.set(self.tr("retrying", title=track.title))
 
     def refresh_queue_view(self):
         self.queue_listbox.delete(0, END)

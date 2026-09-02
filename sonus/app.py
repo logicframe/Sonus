@@ -68,7 +68,7 @@ class App(SettingsMixin, UIMixin, YouTubeMixin, QueueMixin, CacheMixin, PlayerMi
                 cache_mode = "streaming"
             self.cache_mode = StringVar(value=cache_mode)
     
-            self.volume = IntVar(value=80)
+            self.volume = IntVar(value=self._clamp_int(self.settings.get("volume", 50), 0, 100))
             self.thumb_photo = None
             self.status = StringVar(value=self.tr("ready"))
             self.query = StringVar()

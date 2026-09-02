@@ -13,7 +13,7 @@ class YouTubeMixin:
         except Exception as e:
             messagebox.showerror(self.tr("dependency_missing"), str(e))
             return
-    
+
         self._resolving = True
         self.status.set(self.tr("processing"))
         self.results_hint.configure(text=self.tr("getting_data"))
@@ -50,6 +50,8 @@ class YouTubeMixin:
             "extract_flat": "in_playlist",
             "skip_download": True,
             "playlistend": 200,
+            "socket_timeout": 15,
+            "retries": 2,
         }
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=False)
@@ -113,7 +115,7 @@ class YouTubeMixin:
 
     def search(self, query):
         limit = self._clamp_int(self.search_limit.get(), 1, 50)
-        opts = {"quiet": True, "no_warnings": True, "extract_flat": True, "skip_download": True, "playlistend": limit}
+        opts = {"quiet": True, "no_warnings": True, "extract_flat": True, "skip_download": True, "playlistend": limit, "socket_timeout": 15, "retries": 2}
         tracks = []
         # Prefer YouTube Music search for text queries so artist/title searches
         # prioritize music-oriented results. Fall back to regular YouTube search
@@ -215,25 +217,35 @@ class YouTubeMixin:
         if track is None:
             return
         key = str(track.id or track.url)
+        retry_requested = False
+        for idx, queued_track in enumerate(self.queue):
+            queued_key = str(queued_track.id or queued_track.url)
+            if queued_key == key:
+                retry_requested = self._retry_network_for_index(idx)
+                break
+        if retry_requested:
+            self.status.set(self.tr("retrying", title=track.title))
         if key in getattr(self, "_queue_validation_pending", set()):
             return
         self._queue_validation_pending.add(key)
-        self.status.set(self.tr("checking_track"))
-        threading.Thread(target=self._validate_then_queue, args=(track, position, True), daemon=True).start()
+        if not retry_requested:
+            self.status.set(self.tr("checking_track"))
+        threading.Thread(target=self._validate_then_queue, args=(track, position, True, retry_requested), daemon=True).start()
 
-    def _validate_then_queue(self, track, position, play_after):
+    def _validate_then_queue(self, track, position, play_after, retry_requested=False):
         try:
             self.validate_track_availability(track)
-            self.root.after(0, lambda: self._finish_validated_queue_add(track, position, play_after))
+            self.root.after(0, lambda: self._finish_validated_queue_add(track, position, play_after, retry_requested))
         except Exception:
             self.root.after(0, lambda: self._finish_validated_queue_failure(track, position))
 
-    def _finish_validated_queue_add(self, track, position, play_after):
+    def _finish_validated_queue_add(self, track, position, play_after, retry_requested=False):
         self._queue_validation_pending.discard(str(track.id or track.url))
         if self._closing:
             return
         self.queue.append(track)
         idx = len(self.queue) - 1
+        retry_requested = bool(retry_requested or self._retry_network_for_index(idx))
         self.prefetch_tracks([track], priority_index=self.current_index if 0 <= self.current_index < len(self.queue) else idx)
         self.refresh_queue_view()
         self.queue_listbox.selection_clear(0, END)
@@ -242,6 +254,8 @@ class YouTubeMixin:
         self.status.set(self.tr("track_added"))
         if play_after or self.current_index < 0:
             self.start_track(idx)
+            if retry_requested:
+                self.status.set(self.tr("retrying", title=track.title))
 
     def _finish_validated_queue_failure(self, track, position):
         self._queue_validation_pending.discard(str(track.id or track.url))

@@ -2,6 +2,29 @@
 
 All notable changes to Sonus are documented in this file.
 
+## [1.2.0] - 2026-09-02
+
+### Added
+
+- Playback-time handling of unavailable tracks: skipped with a status message, playback advances automatically; pre-queue availability checks removed, playlists with 100+ tracks are added instantly.
+- Skip reasons in the status line with the track title (unavailable / network error / timeout).
+- Automatic retry of tracks failed with network errors: on queue repeat, on shuffle fallback, and on manual selection.
+- Volume level persisted in settings.json; default volume is 50%.
+- README notes (RU/EN) about VPN/proxy requirement in regions with restricted YouTube access.
+
+### Changed
+
+- Runtime cache cleanup now runs at application startup.
+- yt-dlp network hardening: socket timeout, limited retries, bounded track preparation wait.
+
+### Fixed
+
+- Application freeze on HTTP 403/404/5xx, SSL handshake timeout and offline network conditions.
+- Crash (NameError) in the playback error callback caused by late binding of the exception variable in a deferred callback.
+- Repeat-queue mode restarting from the first track instead of advancing after a skip.
+- Repeat-current mode stopping playback instead of advancing past an unavailable track.
+- Corrupted or truncated cached thumbnails not being re-downloaded.
+
 ## [1.1.0] - 2026-08-28
 
 ### Added
@@ -63,5 +86,6 @@ All notable changes to Sonus are documented in this file.
 - Added legal and DMCA guidance to project documentation.
 - Standardized the launcher branding to Sonus.
 
+[1.2.0]: https://github.com/LogicFrame/Sonus/releases/tag/v1.2.0
 [1.1.0]: https://github.com/LogicFrame/Sonus/releases/tag/v1.1.0
 [1.0.0]: https://github.com/LogicFrame/Sonus/releases/tag/v1.0.0

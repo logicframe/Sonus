@@ -28,6 +28,7 @@ class SettingsMixin:
                 "search_results": self._clamp_int(self.search_limit.get(), 1, 50),
                 "prefetch_enabled": bool(self.cache_enabled.get()),
                 "prefetch_mode": self.cache_mode.get() if self.cache_mode.get() in {"streaming", "smart", "mixed"} else "streaming",
+                "volume": self._clamp_int(self.volume.get(), 0, 100),
                 "legal_accepted": bool(self.settings.get("legal_accepted", False)),
             }
             SETTINGS_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
